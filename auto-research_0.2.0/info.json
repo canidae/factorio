@@ -1,0 +1,10 @@
+{
+  "name": "auto-research",
+  "version": "0.2.0",
+  "factorio_version": "0.13",
+  "title": "Auto Research",
+  "author": "canidae",
+  "contact": "canidae@exent.net",
+  "homepage": "http://exent.net",
+  "description": "Automatically start a new research when previous research is done. Chooses the technology that require fewest different types of science packs, then the prioritised technologies (see config.lua), then the least effort technology (effort = science packs * energy)."
+}

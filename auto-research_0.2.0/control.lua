@@ -1,5 +1,27 @@
 require("config")
 
+function addPretechsRecursive(tech)
+    for _, pretech in pairs(tech.prerequisites) do
+        if not pretech.researched and pretech.enabled then
+            local already_added = false
+            for _, added_tech in ipairs(auto_research_first) do
+                if pretech.name == added_tech then
+                    already_added = true
+                    break
+                end
+            end
+            if not already_added then
+                for _, player in pairs(game.players) do
+                    player.print("[Auto Research] Adding '" .. pretech.name .. "' to prioritised list, it's a prerequisite for '" .. tech.name .. "'")
+                    table.remove(auto_research_first, i)
+                end
+                auto_research_first[#auto_research_first + 1] = pretech.name
+            end
+            addPretechsRecursive(pretech)
+        end
+    end
+end
+
 function canResearch(tech)
     if tech.researched or not tech.enabled then
         return false
@@ -13,6 +35,9 @@ function canResearch(tech)
 end
 
 function startNextResearch(force)
+    if not global["auto_research_enabled"] then
+        return
+    end
     -- see if there are some techs we should research first
     local next_research = nil
     local least_effort = nil
@@ -58,10 +83,40 @@ script.on_event(defines.events.on_research_finished, function(event)
 end)
 
 script.on_event(defines.events.on_player_created, function(event)
+    local force = game.players[event.player_index].force
     -- Disable RQ popup
     if remote.interfaces.RQ and remote.interfaces.RQ["popup"] then
         remote.call("RQ", "popup", false)
     end
 
-    startNextResearch(game.players[event.player_index].force)
+    -- Add remote interfaces for enabling/disabling Auto Research
+    global["auto_research_enabled"] = true
+    remote.add_interface("auto_research", {
+        enabled = function(enabled)
+            global["auto_research_enabled"] = enabled
+            for _, player in pairs(game.players) do
+                if enabled then
+                    player.print("[Auto Research] Enabled")
+                else
+                    player.print("[Auto Research] Disabled")
+                end
+            end
+        end
+    })
+
+    -- Check that the technologies listed exist and add any prerequisites to the prioritized technology list
+    for i = #auto_research_first, 1, -1 do
+        local techname = auto_research_first[i]
+        local tech = force.technologies[techname]
+        if not tech then
+            for _, player in pairs(game.players) do
+                player.print("[Auto Research] Technology '" .. techname .. "' doesn't exist, ignoring")
+                table.remove(auto_research_first, i)
+            end
+        else
+            addPretechsRecursive(force.technologies[techname])
+        end
+    end
+
+    startNextResearch(force)
 end)
