@@ -1,6 +1,7 @@
 auto_research_first = {
     "automation",
     "logistics",
+    "steel-processing",
     "oil-processing",
     "fluid-handling",
     "advanced-material-processing",
