@@ -60,6 +60,18 @@ function startNextResearch(force)
     force.current_research = next_research
 end
 
+function setAutoResearchEnabled(enabled)
+    global["auto_research_enabled"] = enabled
+    tellAll(enabled and "Enabled" or "Disabled") -- "ternary" expression, lua style
+
+    -- Start research for any force that haven't already
+    for _, force in pairs(game.forces) do
+        if not force.current_research then
+            startNextResearch(force)
+        end
+    end
+end
+
 function tellAll(message)
     for _, player in pairs(game.players) do
         player.print("[Auto Research] " .. message)
@@ -68,18 +80,11 @@ end
 
 function init()
     -- Enable Auto Research by default
-    global["auto_research_enabled"] = true
+    setAutoResearchEnabled(true)
 
     -- Disable RQ popup
     if remote.interfaces.RQ and remote.interfaces.RQ["popup"] then
         remote.call("RQ", "popup", false)
-    end
-
-    -- Start research for any force that haven't already
-    for _, force in pairs(game.forces) do
-        if not force.current_research then
-            startNextResearch(force)
-        end
     end
 end
 
@@ -104,10 +109,11 @@ script.on_event(defines.events.on_player_created, function(event)
     init()
 end)
 
+script.on_event("auto-research_toggle", function(event)
+    setAutoResearchEnabled(not global["auto_research_enabled"])
+end)
+
 -- Add remote interfaces for enabling/disabling Auto Research
 remote.add_interface("auto_research", {
-    enabled = function(enabled)
-        global["auto_research_enabled"] = enabled
-        tellAll(enabled and "Enabled" or "Disabled") -- "ternary" expression, lua style
-    end
+    enabled = setAutoResearchEnabled
 })
