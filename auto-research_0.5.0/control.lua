@@ -70,6 +70,11 @@ function setAutoResearchEnabled(enabled)
             startNextResearch(force)
         end
     end
+
+    -- Disable/Enable RQ popup if AR is Enabled/Disabled
+    if remote.interfaces.RQ and remote.interfaces.RQ["popup"] then
+        remote.call("RQ", "popup", not enabled)
+    end
 end
 
 function tellAll(message)
@@ -82,11 +87,6 @@ function init()
     -- Enable Auto Research by default
     setAutoResearchEnabled(true)
     tellAll({"auto_research.toggle_msg"})
-
-    -- Disable RQ popup
-    if remote.interfaces.RQ and remote.interfaces.RQ["popup"] then
-        remote.call("RQ", "popup", false)
-    end
 end
 
 script.on_event(defines.events.on_research_finished, function(event)
