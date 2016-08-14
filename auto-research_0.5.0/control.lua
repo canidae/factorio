@@ -62,7 +62,7 @@ end
 
 function setAutoResearchEnabled(enabled)
     global["auto_research_enabled"] = enabled
-    tellAll(enabled and "Enabled" or "Disabled") -- "ternary" expression, lua style
+    tellAll(enabled and {"gui-mod-info.status-enabled"} or {"gui-mod-info.status-disabled"}) -- "ternary" expression, lua style
 
     -- Start research for any force that haven't already
     for _, force in pairs(game.forces) do
@@ -74,13 +74,14 @@ end
 
 function tellAll(message)
     for _, player in pairs(game.players) do
-        player.print("[Auto Research] " .. message)
+        player.print{"auto_research.prefix", message}
     end
 end
 
 function init()
     -- Enable Auto Research by default
     setAutoResearchEnabled(true)
+    tellAll({"auto_research.toggle_msg"})
 
     -- Disable RQ popup
     if remote.interfaces.RQ and remote.interfaces.RQ["popup"] then
