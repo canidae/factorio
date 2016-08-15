@@ -16,6 +16,14 @@ script.on_event(defines.events.on_player_created, function(event)
 
     -- If Killkrog's Blueprint Manager is installed, show GUI
     if remote.interfaces.KBlueprints and remote.interfaces.KBlueprints["Always Show GUI"] then
-        remote.call("KBlueprints", "Always Show GUI", player)
+        -- ok, so this is super annoying:
+        -- this mod likely handles "on_player_created" event before KBM, which means that
+        -- KBM isn't fully set up when event "on_player_created" is broadcasted.
+        -- that means we can't invoke the remote call below just yet
+        -- but we can invoke it on the first tick, hence the "creative" code
+        script.on_event(defines.events.on_tick, function(event)
+            remote.call("KBlueprints", "Always Show GUI", player)
+            script.on_event(defines.events.on_tick, nil) -- remove event listener immediately
+        end)
     end
 end)
