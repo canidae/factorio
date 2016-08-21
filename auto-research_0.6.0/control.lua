@@ -28,6 +28,15 @@ function canResearch(tech)
     return true
 end
 
+function deprioritizedTech(techname)
+    for _, deprioritized in ipairs(auto_research_last) do
+        if techname == deprioritized then
+            return true
+        end
+    end
+    return false
+end
+
 function nonStandardIngredient(ingredient)
     local name = ingredient.name
     return not (name == "science-pack-1" or name == "science-pack-2" or name == "science-pack-3" or name == "alien-science-pack")
@@ -42,30 +51,34 @@ function startNextResearch(force)
     local least_effort = nil
     local least_ingredients = nil
     for _, techname in ipairs(auto_research_first) do
-        local tech = force.technologies[techname]
-        if canResearch(tech) then
-            tech = getPretechIfNeeded(tech)
-            if not least_ingredients or #tech.research_unit_ingredients < least_ingredients then
-                next_research = techname
-                least_effort = 0
-                least_ingredients = #tech.research_unit_ingredients
+        if not deprioritizedTech(name) or not least_ingredients then
+            local tech = force.technologies[techname]
+            if canResearch(tech) then
+                tech = getPretechIfNeeded(tech)
+                if not least_ingredients or deprioritizedTech(next_research) or #tech.research_unit_ingredients < least_ingredients then
+                    next_research = techname
+                    least_effort = 0
+                    least_ingredients = #tech.research_unit_ingredients
+                end
             end
         end
     end
 
     -- if no prioritized tech should be researched first then research the cheapest/quickest tech not researched yet
     for name, tech in pairs(force.technologies) do
-        local should_replace = false
-        local effort = tech.research_unit_count * tech.research_unit_energy
-        if not least_ingredients or #tech.research_unit_ingredients < least_ingredients then
-            should_replace = true
-        elseif #tech.research_unit_ingredients == least_ingredients and (not least_effort or effort < least_effort) then
-            should_replace = true
-        end
-        if should_replace and canResearch(force.technologies[name]) then
-            next_research = name
-            least_effort = effort
-            least_ingredients = #tech.research_unit_ingredients
+        if not deprioritizedTech(name) or not least_ingredients then
+            local should_replace = false
+            local effort = tech.research_unit_count * tech.research_unit_energy
+            if not least_ingredients or deprioritizedTech(next_research) or #tech.research_unit_ingredients < least_ingredients then
+                should_replace = true
+            elseif #tech.research_unit_ingredients == least_ingredients and (not least_effort or effort < least_effort) then
+                should_replace = true
+            end
+            if should_replace and canResearch(force.technologies[name]) then
+                next_research = name
+                least_effort = effort
+                least_ingredients = #tech.research_unit_ingredients
+            end
         end
     end
 
