@@ -1,4 +1,70 @@
-require("config")
+require("config") -- TODO: remove
+
+function init()
+    -- Default Auto Research config
+    global.researchCenterParameters = {
+        parameters = {
+            {
+                signal = {
+                    type = "item",
+                    name = "assembling-machine-1"
+                },
+                count = 1,
+                index = 1
+            },
+            {
+                signal = {
+                    type = "item",
+                    name = "splitter"
+                },
+                count = 1,
+                index = 6
+            },
+            {
+                signal = {
+                    type = "item",
+                    name = "steel-plate"
+                },
+                count = 1,
+                index = 11
+            },
+            {
+                signal = {
+                    type = "item",
+                    name = "storage-tank"
+                },
+                count = 1,
+                index = 16
+            },
+            {
+                signal = {
+                    type = "item",
+                    name = "steel-furnace"
+                },
+                count = 1,
+                index = 21
+            }
+        }
+    }
+
+    -- Enable Auto Research by default
+    setAutoResearchEnabled(true)
+
+    -- Check if game contains research recipies that require something else than science packs
+    local nonstandard_recipies = false
+    for _, force in pairs(game.forces) do
+        for techname, tech in pairs(force.technologies) do
+            for _, ingredient in ipairs(tech.research_unit_ingredients) do
+                nonstandard_recipies = nonStandardIngredient(ingredient)
+                if nonstandard_recipies then
+                    -- disable non-standard recipies and tell user how to enable it again
+                    setAutoResearchExtendedEnabled(false)
+                    return
+                end
+            end
+        end
+    end
+end
 
 function findTechnologyForSignal(force, signal)
     for name, tech in pairs(force.technologies) do
@@ -10,6 +76,20 @@ function findTechnologyForSignal(force, signal)
             end
         end
     end
+end
+
+function findPrioritizedTechnologies(force)
+    -- TODO: should find both "research_first" and "research_last" techs
+    local prioritizedTechnologies = {}
+    if global.researchCenterParameters then
+        for index, parameter in pairs(global.researchCenterParameters.parameters) do
+            local techname = findTechnologyForSignal(force, parameter.signal.name)
+            if techname and canResearch(force.technologies[techname]) then
+                table.insert(prioritizedTechnologies, techname)
+            end
+        end
+    end
+    return prioritizedTechnologies
 end
 
 function getPretechIfNeeded(tech)
@@ -62,7 +142,7 @@ function startNextResearch(force)
     local next_research = nil
     local least_effort = nil
     local least_ingredients = nil
-    for _, techname in ipairs(auto_research_first) do
+    for _, techname in ipairs(findPrioritizedTechnologies(force)) do
         if not deprioritizedTech(name) or not least_ingredients then
             local tech = force.technologies[techname]
             if canResearch(tech) then
@@ -125,26 +205,6 @@ function tellAll(message)
     end
 end
 
-function init()
-    -- Enable Auto Research by default
-    setAutoResearchEnabled(true)
-
-    -- Check if game contains research recipies that require something else than science packs
-    local nonstandard_recipies = false
-    for _, force in pairs(game.forces) do
-        for techname, tech in pairs(force.technologies) do
-            for _, ingredient in ipairs(tech.research_unit_ingredients) do
-                nonstandard_recipies = nonStandardIngredient(ingredient)
-                if nonstandard_recipies then
-                    -- disable non-standard recipies and tell user how to enable it again
-                    setAutoResearchExtendedEnabled(false)
-                    return
-                end
-            end
-        end
-    end
-end
-
 function onResearchFinished(event)
     local force_techs = event.research.force.technologies
     -- remove stuff from auto_research_first so we don't iterate the entire list all the time
@@ -168,16 +228,10 @@ function onBuiltEntity(event)
             -- explode last Research Center
             global.researchCenter.die()
             -- TODO: tell user that old research center exploded due to some circuit overload?
+            -- TODO: actually allow multiple research centers?
 		end
         entity.get_or_create_control_behavior().parameters = global.researchCenterParameters
         global.researchCenter = entity
-
-        -- TODO: remove, testing
-        local behaviour = entity.get_or_create_control_behavior()
-        local parameters = behaviour.parameters.parameters
-        for index, parameter in pairs(parameters) do
-            --tellAll(string.format("%d: %s", parameter.index, findTechnologyForSignal(game.players[event.player_index].force, parameter.signal.name) or "nil"))
-        end
     end
 end
 
