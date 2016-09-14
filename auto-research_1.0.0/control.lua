@@ -1,5 +1,3 @@
-require("config") -- TODO: remove
-
 function init()
     -- Default Auto Research config
     global.researchCenterParameters = {
@@ -78,18 +76,18 @@ function findTechnologyForSignal(force, signal)
     end
 end
 
-function findPrioritizedTechnologies(force)
-    -- TODO: should find both "research_first" and "research_last" techs
-    local prioritizedTechnologies = {}
+function findResearchCenterTechnologies(force)
+    local researchCenterTechnologies = {}
     if global.researchCenterParameters then
         for index, parameter in pairs(global.researchCenterParameters.parameters) do
             local techname = findTechnologyForSignal(force, parameter.signal.name)
-            if techname and canResearch(force.technologies[techname]) then
-                table.insert(prioritizedTechnologies, techname)
+            if techname then
+                local pretech = getPretechIfNeeded(force.technologies[techname])
+                researchCenterTechnologies[pretech.name] = parameter.count
             end
         end
     end
-    return prioritizedTechnologies
+    return researchCenterTechnologies
 end
 
 function getPretechIfNeeded(tech)
@@ -120,15 +118,6 @@ function canResearch(tech)
     return true
 end
 
-function deprioritizedTech(techname)
-    for _, deprioritized in ipairs(auto_research_last) do
-        if techname == deprioritized then
-            return true
-        end
-    end
-    return false
-end
-
 function nonStandardIngredient(ingredient)
     local name = ingredient.name
     return name ~= "science-pack-1" and name ~= "science-pack-2" and name ~= "science-pack-3" and name ~= "alien-science-pack"
@@ -138,16 +127,22 @@ function startNextResearch(force)
     if not global["auto_research_enabled"] then
         return
     end
+
+    -- TODO: setting for ignoring "least_ingredients"
+    --
+    -- TODO: technologies won't change during game (well, it may if user adds a mod)
+    --       it's possible to iterate all technologies and do necessary calculations once instead of each time a research finishes (which is causing a slight lag)
+
     -- see if there are some techs we should research first
+    local researchCenterTechnologies = findResearchCenterTechnologies(force)
     local next_research = nil
     local least_effort = nil
     local least_ingredients = nil
-    for _, techname in ipairs(findPrioritizedTechnologies(force)) do
-        if not deprioritizedTech(name) or not least_ingredients then
-            local tech = force.technologies[techname]
+    for techname, count in pairs(researchCenterTechnologies) do
+        if researchCenterTechnologies[techname] >= 1 or not next_research then
+            local tech = getPretechIfNeeded(force.technologies[techname])
             if canResearch(tech) then
-                tech = getPretechIfNeeded(tech)
-                if not least_ingredients or deprioritizedTech(next_research) or #tech.research_unit_ingredients < least_ingredients then
+                if not next_research or (researchCenterTechnologies[next_research] or 1) < 1 or #tech.research_unit_ingredients < least_ingredients then
                     next_research = techname
                     least_effort = 0
                     least_ingredients = #tech.research_unit_ingredients
@@ -156,20 +151,22 @@ function startNextResearch(force)
         end
     end
 
-    -- if no prioritized tech should be researched first then research the cheapest/quickest tech not researched yet
-    for name, tech in pairs(force.technologies) do
-        if not deprioritizedTech(name) or not least_ingredients then
-            local should_replace = false
-            local effort = tech.research_unit_count * tech.research_unit_energy
-            if not least_ingredients or deprioritizedTech(next_research) or #tech.research_unit_ingredients < least_ingredients then
-                should_replace = true
-            elseif #tech.research_unit_ingredients == least_ingredients and (not least_effort or effort < least_effort) then
-                should_replace = true
-            end
-            if should_replace and canResearch(force.technologies[name]) then
-                next_research = name
-                least_effort = effort
-                least_ingredients = #tech.research_unit_ingredients
+    -- if no prioritized tech should be researched first then research the "least effort" tech not researched yet
+    if not next_research then
+        for techname, tech in pairs(force.technologies) do
+            if (researchCenterTechnologies[techname] or 1) >= 1 or not next_research then
+                local should_replace = false
+                local effort = tech.research_unit_count * tech.research_unit_energy
+                if not next_research or (researchCenterTechnologies[next_research] or 1) < 1 or #tech.research_unit_ingredients < least_ingredients then
+                    should_replace = true
+                elseif #tech.research_unit_ingredients == least_ingredients and effort < least_effort then
+                    should_replace = true
+                end
+                if should_replace and canResearch(force.technologies[techname]) then
+                    next_research = techname
+                    least_effort = effort
+                    least_ingredients = #tech.research_unit_ingredients
+                end
             end
         end
     end
@@ -206,13 +203,20 @@ function tellAll(message)
 end
 
 function onResearchFinished(event)
-    local force_techs = event.research.force.technologies
-    -- remove stuff from auto_research_first so we don't iterate the entire list all the time
-    for i = #auto_research_first, 1, -1 do
-        local tech = force_techs[auto_research_first[i]]
-        if not tech or tech.researched then
-            table.remove(auto_research_first, i)
+    local force = event.research.force
+    -- remove researched stuff from global.researchCenterParameters
+    for i = #global.researchCenterParameters.parameters, 1, -1 do
+        local parameter = global.researchCenterParameters.parameters[i]
+        local techname = findTechnologyForSignal(force, parameter.signal.name)
+        if techname then
+            local tech = force.technologies[techname]
+            if tech and tech.researched then
+                table.remove(global.researchCenterParameters.parameters, i)
+            end
         end
+    end
+    if global.researchCenter and global.researchCenter.valid then
+        global.researchCenter.get_or_create_control_behavior().parameters = global.researchCenterParameters
     end
 
     startNextResearch(event.research.force)
@@ -235,7 +239,7 @@ function onBuiltEntity(event)
     end
 end
 
--- TODO: this feels dirty, but unavoidable for good user experience?
+-- TODO: this is dirty, but unavoidable for good user experience?
 --       we can't save settings when Research Center is mined/destroyed, because then it's already invalid
 --       we could save settings when research is completed, but that means if the user changes settings and the research center is destroyed before research is finished then the changes will be lost
 function onTick()
