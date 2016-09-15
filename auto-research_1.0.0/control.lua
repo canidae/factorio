@@ -21,7 +21,7 @@ function init()
             {
                 signal = {
                     type = "item",
-                    name = "steel-plate"
+                    name = "storage-tank"
                 },
                 count = 1,
                 index = 11
@@ -29,17 +29,17 @@ function init()
             {
                 signal = {
                     type = "item",
-                    name = "storage-tank"
+                    name = "steel-furnace"
                 },
                 count = 1,
                 index = 16
             },
             {
                 signal = {
-                    type = "item",
-                    name = "steel-furnace"
+                    type = "virtual",
+                    name = "research-speed"
                 },
-                count = 1,
+                count = 4,
                 index = 21
             }
         }
@@ -48,28 +48,55 @@ function init()
     -- Enable Auto Research by default
     setAutoResearchEnabled(true)
 
-    -- Check if game contains research recipies that require something else than science packs
-    local nonstandard_recipies = false
+    -- Check if game contains research recipes that require something else than science packs
+    local nonstandard_recipes = false
     for _, force in pairs(game.forces) do
         for techname, tech in pairs(force.technologies) do
             for _, ingredient in ipairs(tech.research_unit_ingredients) do
-                nonstandard_recipies = nonStandardIngredient(ingredient)
-                if nonstandard_recipies then
-                    -- disable non-standard recipies and tell user how to enable it again
+                nonstandard_recipes = nonStandardIngredient(ingredient)
+                if nonstandard_recipes then
+                    -- disable non-standard recipes and tell user how to enable it again
                     setAutoResearchExtendedEnabled(false)
                     return
                 end
             end
         end
     end
+
+    -- Research technologies requiring least ingredients first by default
+    setAutoResearchLeastIngredientsEnabled(true)
 end
 
-function findTechnologyForSignal(force, signal)
-    for name, tech in pairs(force.technologies) do
-        for _, effect in pairs(tech.effects) do
-            if effect.type == "unlock-recipe" then
-                if effect.recipe == signal then
-                    return name
+function findTechnologyForSignal(force, signal, count)
+    if not force or not signal then
+        return nil
+    end
+    local technologies = force.technologies
+    if count and technologies[signal .. "-1"] then
+        -- signal is technology with multiple levels
+        local techname = signal .. "-" .. count
+        if technologies[techname] then
+            -- tech exist at the given level
+            return techname
+        else
+            -- user probably set too high tech level, search for highest tech level
+            for i = 1, count, 1 do
+                if not technologies[signal .. "-" .. i] then
+                    return signal .. "-" .. (i - 1)
+                end
+            end
+        end
+    elseif technologies[signal] then
+        -- signal is technology
+        return signal
+    else
+        -- signal is likely item, search for a technology that unlocks item
+        for name, tech in pairs(force.technologies) do
+            for _, effect in pairs(tech.effects) do
+                if effect.type == "unlock-recipe" then
+                    if effect.recipe == signal then
+                        return name
+                    end
                 end
             end
         end
@@ -79,10 +106,11 @@ end
 function findResearchCenterTechnologies(force)
     local researchCenterTechnologies = {}
     if global.researchCenterParameters then
+        local technologies = force.technologies
         for index, parameter in pairs(global.researchCenterParameters.parameters) do
-            local techname = findTechnologyForSignal(force, parameter.signal.name)
+            local techname = findTechnologyForSignal(force, parameter.signal.name, parameter.count)
             if techname then
-                local pretech = getPretechIfNeeded(force.technologies[techname])
+                local pretech = getPretechIfNeeded(technologies[techname])
                 researchCenterTechnologies[pretech.name] = parameter.count
             end
         end
@@ -108,7 +136,7 @@ function canResearch(tech)
             return false
         end
     end
-    if not global["auto_research_extended_enabled"] then
+    if not global.auto_research_extended_enabled then
         for _, ingredient in ipairs(tech.research_unit_ingredients) do
             if nonStandardIngredient(ingredient) then
                 return false
@@ -124,12 +152,10 @@ function nonStandardIngredient(ingredient)
 end
 
 function startNextResearch(force)
-    if not global["auto_research_enabled"] then
+    if not global.auto_research_enabled then
         return
     end
 
-    -- TODO: setting for ignoring "least_ingredients"
-    --
     -- TODO: technologies won't change during game (well, it may if user adds a mod)
     --       it's possible to iterate all technologies and do necessary calculations once instead of each time a research finishes (which is causing a slight lag)
 
@@ -142,7 +168,7 @@ function startNextResearch(force)
         if researchCenterTechnologies[techname] >= 1 or not next_research then
             local tech = getPretechIfNeeded(force.technologies[techname])
             if canResearch(tech) then
-                if not next_research or (researchCenterTechnologies[next_research] or 1) < 1 or #tech.research_unit_ingredients < least_ingredients then
+                if not next_research or (global.auto_research_least_ingredients and #tech.research_unit_ingredients < least_ingredients) then
                     next_research = techname
                     least_effort = 0
                     least_ingredients = #tech.research_unit_ingredients
@@ -152,21 +178,19 @@ function startNextResearch(force)
     end
 
     -- if no prioritized tech should be researched first then research the "least effort" tech not researched yet
-    if not next_research then
-        for techname, tech in pairs(force.technologies) do
-            if (researchCenterTechnologies[techname] or 1) >= 1 or not next_research then
-                local should_replace = false
-                local effort = tech.research_unit_count * tech.research_unit_energy
-                if not next_research or (researchCenterTechnologies[next_research] or 1) < 1 or #tech.research_unit_ingredients < least_ingredients then
-                    should_replace = true
-                elseif #tech.research_unit_ingredients == least_ingredients and effort < least_effort then
-                    should_replace = true
-                end
-                if should_replace and canResearch(force.technologies[techname]) then
-                    next_research = techname
-                    least_effort = effort
-                    least_ingredients = #tech.research_unit_ingredients
-                end
+    for techname, tech in pairs(force.technologies) do
+        if (researchCenterTechnologies[techname] or 1) >= 1 or not next_research then
+            local should_replace = false
+            local effort = tech.research_unit_count * tech.research_unit_energy
+            if not next_research or (researchCenterTechnologies[next_research] or 1) < 1 or (global.auto_research_least_ingredients and #tech.research_unit_ingredients < least_ingredients) then
+                should_replace = true
+            elseif (not global.auto_research_least_ingredients or #tech.research_unit_ingredients == least_ingredients) and effort < least_effort then
+                should_replace = true
+            end
+            if should_replace and canResearch(force.technologies[techname]) then
+                next_research = techname
+                least_effort = effort
+                least_ingredients = #tech.research_unit_ingredients
             end
         end
     end
@@ -175,7 +199,7 @@ function startNextResearch(force)
 end
 
 function setAutoResearchEnabled(enabled)
-    global["auto_research_enabled"] = enabled
+    global.auto_research_enabled = enabled
     tellAll({"auto_research.toggle_msg", enabled and {"gui-mod-info.status-enabled"} or {"gui-mod-info.status-disabled"}}) -- "ternary" expression, lua style
 
     -- Start research for any force that haven't already
@@ -192,8 +216,13 @@ function setAutoResearchEnabled(enabled)
 end
 
 function setAutoResearchExtendedEnabled(enabled)
-    global["auto_research_extended_enabled"] = enabled
+    global.auto_research_extended_enabled = enabled
     tellAll({"auto_research.toggle_extended_msg", enabled and {"gui-mod-info.status-enabled"} or {"gui-mod-info.status-disabled"}}) -- "ternary" expression, lua style
+end
+
+function setAutoResearchLeastIngredientsEnabled(enabled)
+    global.auto_research_least_ingredients = enabled
+    tellAll({"auto_research.toggle_least_ingredients_msg", enabled and {"gui-mod-info.status-enabled"} or {"gui-mod-info.status-disabled"}}) -- "ternary" expression, lua style
 end
 
 function tellAll(message)
@@ -207,7 +236,7 @@ function onResearchFinished(event)
     -- remove researched stuff from global.researchCenterParameters
     for i = #global.researchCenterParameters.parameters, 1, -1 do
         local parameter = global.researchCenterParameters.parameters[i]
-        local techname = findTechnologyForSignal(force, parameter.signal.name)
+        local techname = findTechnologyForSignal(force, parameter.signal.name, parameter.count)
         if techname then
             local tech = force.technologies[techname]
             if tech and tech.researched then
@@ -226,18 +255,19 @@ function onBuiltEntity(event)
     local entity = event.created_entity
 	if entity.name == "research-center" then
 		if global.researchCenter and global.researchCenter.valid then
-            -- save Research Center settings
-            global.researchCenterParameters = global.researchCenter.get_or_create_control_behavior().parameters
-
             -- explode last Research Center
             global.researchCenter.die()
-            -- TODO: tell user that old research center exploded due to some circuit overload?
-            -- TODO: actually allow multiple research centers?
+            tellAll({"auto_research.explode_msg"})
+            -- TODO: allow multiple research centers instead of blowing them up? then we need some clever mechanics to set parameters
 		end
         entity.get_or_create_control_behavior().parameters = global.researchCenterParameters
         global.researchCenter = entity
     end
 end
+
+-- TODO: fix the "auto_research" and "auto-research" shenaningans
+-- TODO: fix image for research center
+-- TODO: add support for multiple forces
 
 -- TODO: this is dirty, but unavoidable for good user experience?
 --       we can't save settings when Research Center is mined/destroyed, because then it's already invalid
@@ -261,15 +291,20 @@ script.on_event(defines.events.on_tick, onTick)
 
 -- keybinding hooks
 script.on_event("auto-research_toggle", function(event)
-    setAutoResearchEnabled(not global["auto_research_enabled"])
+    setAutoResearchEnabled(not global.auto_research_enabled)
 end)
 
 script.on_event("auto-research_toggle_extended", function(event)
-    setAutoResearchExtendedEnabled(not global["auto_research_extended_enabled"])
+    setAutoResearchExtendedEnabled(not global.auto_research_extended_enabled)
+end)
+
+script.on_event("auto-research_toggle_least_ingredients", function(event)
+    setAutoResearchLeastIngredientsEnabled(not global.auto_research_least_ingredients)
 end)
 
 -- Add remote interfaces for enabling/disabling Auto Research
 remote.add_interface("auto_research", {
     enabled = setAutoResearchEnabled,
-    extended = setAutoResearchExtendedEnabled
+    extended = setAutoResearchExtendedEnabled,
+    least_ingredients = setAutoResearchLeastIngredientsEnabled
 })
