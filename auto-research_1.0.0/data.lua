@@ -7,7 +7,7 @@ data:extend({
 	},
 	{
 		type = "custom-input",
-		name = "auto-research_toggle_least_ingredients",
+		name = "auto-research_toggle_fewest_ingredients",
 		key_sequence = "CONTROL + t"
 	},
 	{

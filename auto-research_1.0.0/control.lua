@@ -63,8 +63,8 @@ function init()
         end
     end
 
-    -- Research technologies requiring least ingredients first by default
-    setAutoResearchLeastIngredientsEnabled(true)
+    -- Research technologies requiring fewest ingredients first by default
+    setAutoResearchFewestIngredientsEnabled(true)
 end
 
 function findTechnologyForSignal(force, signal, count)
@@ -163,15 +163,15 @@ function startNextResearch(force)
     local researchCenterTechnologies = findResearchCenterTechnologies(force)
     local next_research = nil
     local least_effort = nil
-    local least_ingredients = nil
+    local fewest_ingredients = nil
     for techname, count in pairs(researchCenterTechnologies) do
         if researchCenterTechnologies[techname] >= 1 or not next_research then
             local tech = getPretechIfNeeded(force.technologies[techname])
             if canResearch(tech) then
-                if not next_research or (global.auto_research_least_ingredients and #tech.research_unit_ingredients < least_ingredients) then
+                if not next_research or (global.auto_research_fewest_ingredients and #tech.research_unit_ingredients < fewest_ingredients) then
                     next_research = techname
                     least_effort = 0
-                    least_ingredients = #tech.research_unit_ingredients
+                    fewest_ingredients = #tech.research_unit_ingredients
                 end
             end
         end
@@ -182,15 +182,15 @@ function startNextResearch(force)
         if (researchCenterTechnologies[techname] or 1) >= 1 or not next_research then
             local should_replace = false
             local effort = tech.research_unit_count * tech.research_unit_energy
-            if not next_research or (researchCenterTechnologies[next_research] or 1) < 1 or (global.auto_research_least_ingredients and #tech.research_unit_ingredients < least_ingredients) then
+            if not next_research or (researchCenterTechnologies[next_research] or 1) < 1 or (global.auto_research_fewest_ingredients and #tech.research_unit_ingredients < fewest_ingredients) then
                 should_replace = true
-            elseif (not global.auto_research_least_ingredients or #tech.research_unit_ingredients == least_ingredients) and effort < least_effort then
+            elseif (not global.auto_research_fewest_ingredients or #tech.research_unit_ingredients == fewest_ingredients) and effort < least_effort then
                 should_replace = true
             end
             if should_replace and canResearch(force.technologies[techname]) then
                 next_research = techname
                 least_effort = effort
-                least_ingredients = #tech.research_unit_ingredients
+                fewest_ingredients = #tech.research_unit_ingredients
             end
         end
     end
@@ -220,9 +220,9 @@ function setAutoResearchExtendedEnabled(enabled)
     tellAll({"auto_research.toggle_extended_msg", enabled and {"gui-mod-info.status-enabled"} or {"gui-mod-info.status-disabled"}}) -- "ternary" expression, lua style
 end
 
-function setAutoResearchLeastIngredientsEnabled(enabled)
-    global.auto_research_least_ingredients = enabled
-    tellAll({"auto_research.toggle_least_ingredients_msg", enabled and {"gui-mod-info.status-enabled"} or {"gui-mod-info.status-disabled"}}) -- "ternary" expression, lua style
+function setAutoResearchFewestIngredientsEnabled(enabled)
+    global.auto_research_fewest_ingredients = enabled
+    tellAll({"auto_research.toggle_fewest_ingredients_msg", enabled and {"gui-mod-info.status-enabled"} or {"gui-mod-info.status-disabled"}}) -- "ternary" expression, lua style
 end
 
 function tellAll(message)
@@ -298,13 +298,13 @@ script.on_event("auto-research_toggle_extended", function(event)
     setAutoResearchExtendedEnabled(not global.auto_research_extended_enabled)
 end)
 
-script.on_event("auto-research_toggle_least_ingredients", function(event)
-    setAutoResearchLeastIngredientsEnabled(not global.auto_research_least_ingredients)
+script.on_event("auto-research_toggle_fewest_ingredients", function(event)
+    setAutoResearchFewestIngredientsEnabled(not global.auto_research_fewest_ingredients)
 end)
 
 -- Add remote interfaces for enabling/disabling Auto Research
 remote.add_interface("auto_research", {
     enabled = setAutoResearchEnabled,
     extended = setAutoResearchExtendedEnabled,
-    least_ingredients = setAutoResearchLeastIngredientsEnabled
+    fewest_ingredients = setAutoResearchFewestIngredientsEnabled
 })
