@@ -200,7 +200,7 @@ end
 
 function setAutoResearchEnabled(enabled)
     global.auto_research_enabled = enabled
-    tellAll({"auto_research.toggle_msg", enabled and {"gui-mod-info.status-enabled"} or {"gui-mod-info.status-disabled"}}) -- "ternary" expression, lua style
+    tellAll({"auto-research.toggle_msg", enabled and {"gui-mod-info.status-enabled"} or {"gui-mod-info.status-disabled"}}) -- "ternary" expression, lua style
 
     -- Start research for any force that haven't already
     for _, force in pairs(game.forces) do
@@ -217,17 +217,17 @@ end
 
 function setAutoResearchExtendedEnabled(enabled)
     global.auto_research_extended_enabled = enabled
-    tellAll({"auto_research.toggle_extended_msg", enabled and {"gui-mod-info.status-enabled"} or {"gui-mod-info.status-disabled"}}) -- "ternary" expression, lua style
+    tellAll({"auto-research.toggle_extended_msg", enabled and {"gui-mod-info.status-enabled"} or {"gui-mod-info.status-disabled"}}) -- "ternary" expression, lua style
 end
 
 function setAutoResearchFewestIngredientsEnabled(enabled)
     global.auto_research_fewest_ingredients = enabled
-    tellAll({"auto_research.toggle_fewest_ingredients_msg", enabled and {"gui-mod-info.status-enabled"} or {"gui-mod-info.status-disabled"}}) -- "ternary" expression, lua style
+    tellAll({"auto-research.toggle_fewest_ingredients_msg", enabled and {"gui-mod-info.status-enabled"} or {"gui-mod-info.status-disabled"}}) -- "ternary" expression, lua style
 end
 
 function tellAll(message)
     for _, player in pairs(game.players) do
-        player.print{"auto_research.prefix", message}
+        player.print{"auto-research.prefix", message}
     end
 end
 
@@ -257,7 +257,7 @@ function onBuiltEntity(event)
 		if global.researchCenter and global.researchCenter.valid then
             -- explode last Research Center
             global.researchCenter.die()
-            tellAll({"auto_research.explode_msg"})
+            tellAll({"auto-research.explode_msg"})
             -- TODO: allow multiple research centers instead of blowing them up? then we need some clever mechanics to set parameters
 		end
         entity.get_or_create_control_behavior().parameters = global.researchCenterParameters
@@ -265,8 +265,6 @@ function onBuiltEntity(event)
     end
 end
 
--- TODO: fix the "auto_research" and "auto-research" shenaningans
--- TODO: fix image for research center
 -- TODO: add support for multiple forces
 
 -- TODO: this is dirty, but unavoidable for good user experience?
@@ -303,7 +301,7 @@ script.on_event("auto-research_toggle_fewest_ingredients", function(event)
 end)
 
 -- Add remote interfaces for enabling/disabling Auto Research
-remote.add_interface("auto_research", {
+remote.add_interface("auto-research", {
     enabled = setAutoResearchEnabled,
     extended = setAutoResearchExtendedEnabled,
     fewest_ingredients = setAutoResearchFewestIngredientsEnabled
