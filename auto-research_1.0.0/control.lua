@@ -1,74 +1,50 @@
 function init()
-    -- Default Auto Research config
-    global.researchCenterParameters = {
-        parameters = {
-            {
-                signal = {
-                    type = "item",
-                    name = "assembling-machine-1"
-                },
-                count = 1,
-                index = 1
-            },
-            {
-                signal = {
-                    type = "item",
-                    name = "splitter"
-                },
-                count = 1,
-                index = 6
-            },
-            {
-                signal = {
-                    type = "item",
-                    name = "storage-tank"
-                },
-                count = 1,
-                index = 11
-            },
-            {
-                signal = {
-                    type = "item",
-                    name = "steel-furnace"
-                },
-                count = 1,
-                index = 16
-            },
-            {
-                signal = {
-                    type = "virtual",
-                    name = "research-speed"
-                },
-                count = 4,
-                index = 21
-            }
-        }
-    }
+    if not global.auto_research then
+        global.auto_research = {}
+    end
 
-    -- Enable Auto Research by default
-    setAutoResearchEnabled(true)
-
-    -- Check if game contains research recipes that require something else than science packs
-    local nonstandard_recipes = false
+    -- Init config for forces
     for _, force in pairs(game.forces) do
-        for techname, tech in pairs(force.technologies) do
-            for _, ingredient in ipairs(tech.research_unit_ingredients) do
-                nonstandard_recipes = nonStandardIngredient(ingredient)
-                if nonstandard_recipes then
-                    -- disable non-standard recipes and tell user how to enable it again
-                    setAutoResearchExtendedEnabled(false)
-                    return
-                end
+        initForce(force)
+    end
+
+    -- Disable Research Queue popup
+    if remote.interfaces.RQ and remote.interfaces.RQ["popup"] then
+        remote.call("RQ", "popup", false)
+    end
+end
+
+function initForce(force)
+    -- Disable Auto Research by default
+    setAutoResearchEnabled(force, false)
+
+    -- Research technologies requiring fewest ingredients first by default
+    setAutoResearchFewestIngredientsEnabled(force, true)
+
+    -- Check if force has research recipes that require something else than science packs
+    local nonstandard_recipes = false
+    for techname, tech in pairs(force.technologies) do
+        for _, ingredient in ipairs(tech.research_unit_ingredients) do
+            nonstandard_recipes = nonStandardIngredient(ingredient)
+            if nonstandard_recipes then
+                -- disable non-standard recipes and tell user how to enable it again
+                setAutoResearchExtendedEnabled(force, false)
+                goto hell -- ahmagawd! this will surely goto hell!
             end
         end
     end
+    ::hell::
+end
 
-    -- Research technologies requiring fewest ingredients first by default
-    setAutoResearchFewestIngredientsEnabled(true)
+function getForceConfig(force)
+    if not global.auto_research[force.name] then
+        global.auto_research[force.name] = {}
+    end
+    return global.auto_research[force.name]
 end
 
 function findTechnologyForSignal(force, signal, count)
-    if not force or not signal then
+    if not signal then
         return nil
     end
     local technologies = force.technologies
@@ -105,9 +81,10 @@ end
 
 function findResearchCenterTechnologies(force)
     local researchCenterTechnologies = {}
-    if global.researchCenterParameters then
+    local researchCenterParameters = getForceConfig(force).researchCenterParameters
+    if researchCenterParameters then
         local technologies = force.technologies
-        for index, parameter in pairs(global.researchCenterParameters.parameters) do
+        for index, parameter in pairs(researchCenterParameters.parameters) do
             local techname = findTechnologyForSignal(force, parameter.signal.name, parameter.count)
             if techname then
                 local pretech = getPretechIfNeeded(technologies[techname])
@@ -127,7 +104,7 @@ function getPretechIfNeeded(tech)
     return tech
 end
 
-function canResearch(tech)
+function canResearch(force, tech)
     if not tech or tech.researched or not tech.enabled then
         return false
     end
@@ -136,7 +113,7 @@ function canResearch(tech)
             return false
         end
     end
-    if not global.auto_research_extended_enabled then
+    if not getForceConfig(force).auto_research_extended_enabled then
         for _, ingredient in ipairs(tech.research_unit_ingredients) do
             if nonStandardIngredient(ingredient) then
                 return false
@@ -152,7 +129,8 @@ function nonStandardIngredient(ingredient)
 end
 
 function startNextResearch(force)
-    if not global.auto_research_enabled then
+    local config = getForceConfig(force)
+    if not config.auto_research_enabled then
         return
     end
 
@@ -160,6 +138,7 @@ function startNextResearch(force)
     --       it's possible to iterate all technologies and do necessary calculations once instead of each time a research finishes (which is causing a slight lag)
 
     -- see if there are some techs we should research first
+    local auto_research_fewest_ingredients = config.auto_research_fewest_ingredients
     local researchCenterTechnologies = findResearchCenterTechnologies(force)
     local next_research = nil
     local least_effort = nil
@@ -167,8 +146,8 @@ function startNextResearch(force)
     for techname, count in pairs(researchCenterTechnologies) do
         if researchCenterTechnologies[techname] >= 1 or not next_research then
             local tech = getPretechIfNeeded(force.technologies[techname])
-            if canResearch(tech) then
-                if not next_research or (global.auto_research_fewest_ingredients and #tech.research_unit_ingredients < fewest_ingredients) then
+            if canResearch(force, tech) then
+                if not next_research or (auto_research_fewest_ingredients and #tech.research_unit_ingredients < fewest_ingredients) then
                     next_research = techname
                     least_effort = 0
                     fewest_ingredients = #tech.research_unit_ingredients
@@ -182,12 +161,12 @@ function startNextResearch(force)
         if (researchCenterTechnologies[techname] or 1) >= 1 or not next_research then
             local should_replace = false
             local effort = tech.research_unit_count * tech.research_unit_energy
-            if not next_research or (researchCenterTechnologies[next_research] or 1) < 1 or (global.auto_research_fewest_ingredients and #tech.research_unit_ingredients < fewest_ingredients) then
+            if not next_research or (researchCenterTechnologies[next_research] or 1) < 1 or (auto_research_fewest_ingredients and #tech.research_unit_ingredients < fewest_ingredients) then
                 should_replace = true
-            elseif (not global.auto_research_fewest_ingredients or #tech.research_unit_ingredients == fewest_ingredients) and effort < least_effort then
+            elseif (not auto_research_fewest_ingredients or #tech.research_unit_ingredients == fewest_ingredients) and effort < least_effort then
                 should_replace = true
             end
-            if should_replace and canResearch(force.technologies[techname]) then
+            if should_replace and canResearch(force, force.technologies[techname]) then
                 next_research = techname
                 least_effort = effort
                 fewest_ingredients = #tech.research_unit_ingredients
@@ -198,54 +177,60 @@ function startNextResearch(force)
     force.current_research = next_research
 end
 
-function setAutoResearchEnabled(enabled)
-    global.auto_research_enabled = enabled
-    tellAll({"auto-research.toggle_msg", enabled and {"gui-mod-info.status-enabled"} or {"gui-mod-info.status-disabled"}}) -- "ternary" expression, lua style
-
-    -- Start research for any force that haven't already
-    for _, force in pairs(game.forces) do
-        if not force.current_research then
-            startNextResearch(force)
-        end
+function setAutoResearchEnabled(force, enabled)
+    if not force then
+        return
     end
+    getForceConfig(force).auto_research_enabled = enabled
+    tellForce(force, {"auto-research.toggle_msg", enabled and {"gui-mod-info.status-enabled"} or {"gui-mod-info.status-disabled"}}) -- "ternary" expression, lua style
 
-    -- Disable/Enable RQ popup if AR is Enabled/Disabled
-    if remote.interfaces.RQ and remote.interfaces.RQ["popup"] then
-        remote.call("RQ", "popup", not enabled)
+    -- Start research for force if it haven't already
+    if not force.current_research then
+        startNextResearch(force)
     end
 end
 
-function setAutoResearchExtendedEnabled(enabled)
-    global.auto_research_extended_enabled = enabled
-    tellAll({"auto-research.toggle_extended_msg", enabled and {"gui-mod-info.status-enabled"} or {"gui-mod-info.status-disabled"}}) -- "ternary" expression, lua style
+function setAutoResearchExtendedEnabled(force, enabled)
+    if not force then
+        return
+    end
+    getForceConfig(force).auto_research_extended_enabled = enabled
+    tellForce(force, {"auto-research.toggle_extended_msg", enabled and {"gui-mod-info.status-enabled"} or {"gui-mod-info.status-disabled"}}) -- "ternary" expression, lua style
 end
 
-function setAutoResearchFewestIngredientsEnabled(enabled)
-    global.auto_research_fewest_ingredients = enabled
-    tellAll({"auto-research.toggle_fewest_ingredients_msg", enabled and {"gui-mod-info.status-enabled"} or {"gui-mod-info.status-disabled"}}) -- "ternary" expression, lua style
+function setAutoResearchFewestIngredientsEnabled(force, enabled)
+    if not force then
+        return
+    end
+    getForceConfig(force).auto_research_fewest_ingredients = enabled
+    tellForce(force, {"auto-research.toggle_fewest_ingredients_msg", enabled and {"gui-mod-info.status-enabled"} or {"gui-mod-info.status-disabled"}}) -- "ternary" expression, lua style
 end
 
-function tellAll(message)
-    for _, player in pairs(game.players) do
+function tellForce(force, message)
+    for _, player in pairs(force.players) do
         player.print{"auto-research.prefix", message}
     end
 end
 
 function onResearchFinished(event)
     local force = event.research.force
-    -- remove researched stuff from global.researchCenterParameters
-    for i = #global.researchCenterParameters.parameters, 1, -1 do
-        local parameter = global.researchCenterParameters.parameters[i]
-        local techname = findTechnologyForSignal(force, parameter.signal.name, parameter.count)
-        if techname then
-            local tech = force.technologies[techname]
-            if tech and tech.researched then
-                table.remove(global.researchCenterParameters.parameters, i)
+    local config = getForceConfig(force)
+    -- remove researched stuff from config.researchCenterParameters
+    if config.researchCenterParameters then
+        for i = #config.researchCenterParameters.parameters, 1, -1 do
+            local parameter = config.researchCenterParameters.parameters[i]
+            local techname = findTechnologyForSignal(force, parameter.signal.name, parameter.count)
+            if techname then
+                local tech = force.technologies[techname]
+                if tech and tech.researched then
+                    table.remove(config.researchCenterParameters.parameters, i)
+                end
             end
         end
-    end
-    if global.researchCenter and global.researchCenter.valid then
-        global.researchCenter.get_or_create_control_behavior().parameters = global.researchCenterParameters
+        local researchCenter = config.researchCenter
+        if researchCenter and researchCenter.valid then
+            researchCenter.get_or_create_control_behavior().parameters = config.researchCenterParameters
+        end
     end
 
     startNextResearch(event.research.force)
@@ -253,30 +238,40 @@ end
 
 function onBuiltEntity(event)
     local entity = event.created_entity
+    local force = entity.force
+    local config = getForceConfig(force)
 	if entity.name == "research-center" then
-		if global.researchCenter and global.researchCenter.valid then
+        local researchCenter = config.researchCenter
+		if researchCenter and researchCenter.valid then
             -- explode last Research Center
-            global.researchCenter.die()
-            tellAll({"auto-research.explode_msg"})
+            researchCenter.die()
+            tellForce(force, {"auto-research.explode_msg"})
             -- TODO: allow multiple research centers instead of blowing them up? then we need some clever mechanics to set parameters
 		end
-        entity.get_or_create_control_behavior().parameters = global.researchCenterParameters
-        global.researchCenter = entity
+        if config.researchCenterParameters then
+            entity.get_or_create_control_behavior().parameters = config.researchCenterParameters
+        end
+        config.researchCenter = entity
     end
 end
-
--- TODO: add support for multiple forces
 
 -- TODO: this is dirty, but unavoidable for good user experience?
 --       we can't save settings when Research Center is mined/destroyed, because then it's already invalid
 --       we could save settings when research is completed, but that means if the user changes settings and the research center is destroyed before research is finished then the changes will be lost
 function onTick()
-    if not global.researchCenter or not global.researchCenter.valid or game.tick % 60 ~= 0 then
+    if game.tick % 60 ~= 0 then
         return
     end
+    for _, force in pairs(game.forces) do
+        local config = getForceConfig(force)
+        local researchCenter = config.researchCenter
+        if not researchCenter or not researchCenter.valid or game.tick % 60 ~= 0 then
+            return
+        end
 
-    -- save Research Center settings
-    global.researchCenterParameters = global.researchCenter.get_or_create_control_behavior().parameters
+        -- save Research Center settings
+        config.researchCenterParameters = config.researchCenter.get_or_create_control_behavior().parameters
+    end
 end
 
 -- event hooks
@@ -286,18 +281,24 @@ script.on_event(defines.events.on_player_created, init)
 script.on_event(defines.events.on_built_entity, onBuiltEntity)
 script.on_event(defines.events.on_robot_built_entity, onBuiltEntity)
 script.on_event(defines.events.on_tick, onTick)
+script.on_event(defines.events.on_force_created, function(event)
+    initForce(event.force)
+end)
 
 -- keybinding hooks
 script.on_event("auto-research_toggle", function(event)
-    setAutoResearchEnabled(not global.auto_research_enabled)
+    local force = game.players[event.player_index].force
+    setAutoResearchEnabled(force, not getForceConfig(force).auto_research_enabled)
 end)
 
 script.on_event("auto-research_toggle_extended", function(event)
-    setAutoResearchExtendedEnabled(not global.auto_research_extended_enabled)
+    local force = game.players[event.player_index].force
+    setAutoResearchExtendedEnabled(force, not getForceConfig(force).auto_research_extended_enabled)
 end)
 
 script.on_event("auto-research_toggle_fewest_ingredients", function(event)
-    setAutoResearchFewestIngredientsEnabled(not global.auto_research_fewest_ingredients)
+    local force = game.players[event.player_index].force
+    setAutoResearchFewestIngredientsEnabled(force, not getForceConfig(force).auto_research_fewest_ingredients)
 end)
 
 -- Add remote interfaces for enabling/disabling Auto Research
