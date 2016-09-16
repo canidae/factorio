@@ -173,145 +173,160 @@ data:extend({
 		result = "research-center"
 	},
 
+    -- subgroup for signals
+    {
+        type = "item-subgroup",
+        name = "virtual-signal-auto-research",
+        group = "signals",
+        order = "g"
+    },
+
     -- signals
     {
         type = "virtual-signal",
         name = "grenade-damage",
         icon = "__auto-research__/graphics/icons/signal/grenade-damage.png",
-        subgroup = "virtual-signal-number",
-        order = "r[auto-research]-[01]"
+        subgroup = "virtual-signal-auto-research",
+        order = "g[auto-research]-[01]"
     },
     {
         type = "virtual-signal",
         name = "research-speed",
         icon = "__auto-research__/graphics/icons/signal/research-speed.png",
-        subgroup = "virtual-signal-number",
-        order = "r[auto-research]-[02]"
+        subgroup = "virtual-signal-auto-research",
+        order = "g[auto-research]-[02]"
     },
     {
         type = "virtual-signal",
         name = "toolbelt",
         icon = "__auto-research__/graphics/icons/signal/toolbelt.png",
-        subgroup = "virtual-signal-number",
-        order = "r[auto-research]-[03]"
+        subgroup = "virtual-signal-auto-research",
+        order = "g[auto-research]-[03]"
     },
     {
         type = "virtual-signal",
         name = "worker-robots-speed",
         icon = "__auto-research__/graphics/icons/signal/worker-robots-speed.png",
-        subgroup = "virtual-signal-number",
-        order = "r[auto-research]-[04]"
+        subgroup = "virtual-signal-auto-research",
+        order = "g[auto-research]-[04]"
     },
     {
         type = "virtual-signal",
         name = "worker-robots-storage",
         icon = "__auto-research__/graphics/icons/signal/worker-robots-storage.png",
-        subgroup = "virtual-signal-number",
-        order = "r[auto-research]-[05]"
+        subgroup = "virtual-signal-auto-research",
+        order = "g[auto-research]-[05]"
     },
     {
         type = "virtual-signal",
         name = "character-logistic-slots",
         icon = "__auto-research__/graphics/icons/signal/character-logistic-slots.png",
-        subgroup = "virtual-signal-number",
-        order = "r[auto-research]-[06]"
+        subgroup = "virtual-signal-auto-research",
+        order = "g[auto-research]-[06]"
     },
     {
         type = "virtual-signal",
         name = "character-logistic-trash-slots",
         icon = "__auto-research__/graphics/icons/signal/character-logistic-trash-slots.png",
-        subgroup = "virtual-signal-number",
-        order = "r[auto-research]-[07]"
+        subgroup = "virtual-signal-auto-research",
+        order = "g[auto-research]-[07]"
     },
     {
         type = "virtual-signal",
         name = "auto-character-logistic-trash-slots",
         icon = "__auto-research__/graphics/icons/signal/auto-character-logistic-trash-slots.png",
-        subgroup = "virtual-signal-number",
-        order = "r[auto-research]-[08]"
+        subgroup = "virtual-signal-auto-research",
+        order = "g[auto-research]-[08]"
     },
     {
         type = "virtual-signal",
         name = "shotgun-shell-damage",
         icon = "__auto-research__/graphics/icons/signal/shotgun-shell-damage.png",
-        subgroup = "virtual-signal-number",
-        order = "r[auto-research]-[09]"
+        subgroup = "virtual-signal-auto-research",
+        order = "g[auto-research]-[09]"
     },
     {
         type = "virtual-signal",
         name = "shotgun-shell-speed",
         icon = "__auto-research__/graphics/icons/signal/shotgun-shell-speed.png",
-        subgroup = "virtual-signal-number",
-        order = "r[auto-research]-[10]"
+        subgroup = "virtual-signal-auto-research",
+        order = "g[auto-research]-[10]"
     },
     {
         type = "virtual-signal",
         name = "laser-turret-damage",
         icon = "__auto-research__/graphics/icons/signal/laser-turret-damage.png",
-        subgroup = "virtual-signal-number",
-        order = "r[auto-research]-[11]"
+        subgroup = "virtual-signal-auto-research",
+        order = "g[auto-research]-[11]"
     },
     {
         type = "virtual-signal",
         name = "laser-turret-speed",
         icon = "__auto-research__/graphics/icons/signal/laser-turret-speed.png",
-        subgroup = "virtual-signal-number",
-        order = "r[auto-research]-[12]"
+        subgroup = "virtual-signal-auto-research",
+        order = "g[auto-research]-[12]"
     },
     {
         type = "virtual-signal",
         name = "gun-turret-damage",
         icon = "__auto-research__/graphics/icons/signal/gun-turret-damage.png",
-        subgroup = "virtual-signal-number",
-        order = "r[auto-research]-[13]"
+        subgroup = "virtual-signal-auto-research",
+        order = "g[auto-research]-[13]"
     },
     {
         type = "virtual-signal",
         name = "flamethrower-damage",
         icon = "__auto-research__/graphics/icons/signal/flamethrower-damage.png",
-        subgroup = "virtual-signal-number",
-        order = "r[auto-research]-[14]"
+        subgroup = "virtual-signal-auto-research",
+        order = "g[auto-research]-[14]"
     },
     {
         type = "virtual-signal",
         name = "bullet-damage",
         icon = "__auto-research__/graphics/icons/signal/bullet-damage.png",
-        subgroup = "virtual-signal-number",
-        order = "r[auto-research]-[15]"
+        subgroup = "virtual-signal-auto-research",
+        order = "g[auto-research]-[15]"
     },
     {
         type = "virtual-signal",
         name = "bullet-speed",
         icon = "__auto-research__/graphics/icons/signal/bullet-speed.png",
-        subgroup = "virtual-signal-number",
-        order = "r[auto-research]-[16]"
+        subgroup = "virtual-signal-auto-research",
+        order = "g[auto-research]-[16]"
     },
     {
         type = "virtual-signal",
         name = "combat-robot-damage",
         icon = "__auto-research__/graphics/icons/signal/combat-robot-damage.png",
-        subgroup = "virtual-signal-number",
-        order = "r[auto-research]-[17]"
+        subgroup = "virtual-signal-auto-research",
+        order = "g[auto-research]-[17]"
     },
     {
         type = "virtual-signal",
         name = "rocket-damage",
         icon = "__auto-research__/graphics/icons/signal/rocket-damage.png",
-        subgroup = "virtual-signal-number",
-        order = "r[auto-research]-[18]"
+        subgroup = "virtual-signal-auto-research",
+        order = "g[auto-research]-[18]"
     },
     {
         type = "virtual-signal",
         name = "rocket-speed",
         icon = "__auto-research__/graphics/icons/signal/rocket-speed.png",
-        subgroup = "virtual-signal-number",
-        order = "r[auto-research]-[19]"
+        subgroup = "virtual-signal-auto-research",
+        order = "g[auto-research]-[19]"
     },
     {
         type = "virtual-signal",
         name = "follower-robot-count",
         icon = "__auto-research__/graphics/icons/signal/follower-robot-count.png",
-        subgroup = "virtual-signal-number",
-        order = "r[auto-research]-[20]"
+        subgroup = "virtual-signal-auto-research",
+        order = "g[auto-research]-[20]"
+    },
+    {
+        type = "virtual-signal",
+        name = "inserter-capacity-bonus",
+        icon = "__auto-research__/graphics/icons/signal/inserter-capacity-bonus.png",
+        subgroup = "virtual-signal-auto-research",
+        order = "g[auto-research]-[21]"
     }
 })
