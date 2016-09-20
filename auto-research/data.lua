@@ -185,6 +185,7 @@ data:extend({
     {
         type = "virtual-signal",
         name = "grenade-damage",
+        localised_name = {"auto-research.prefix", {"auto-research.signal_text", {"technology-name.grenade-damage"}}},
         icon = "__auto-research__/graphics/icons/signal/grenade-damage.png",
         subgroup = "virtual-signal-auto-research",
         order = "g[auto-research]"
@@ -192,6 +193,7 @@ data:extend({
     {
         type = "virtual-signal",
         name = "research-speed",
+        localised_name = {"auto-research.prefix", {"auto-research.signal_text", {"technology-name.research-speed"}}},
         icon = "__auto-research__/graphics/icons/signal/research-speed.png",
         subgroup = "virtual-signal-auto-research",
         order = "g[auto-research]"
@@ -199,6 +201,7 @@ data:extend({
     {
         type = "virtual-signal",
         name = "toolbelt",
+        localised_name = {"auto-research.prefix", {"auto-research.signal_text", {"technology-name.toolbelt"}}},
         icon = "__auto-research__/graphics/icons/signal/toolbelt.png",
         subgroup = "virtual-signal-auto-research",
         order = "g[auto-research]"
@@ -206,6 +209,7 @@ data:extend({
     {
         type = "virtual-signal",
         name = "worker-robots-speed",
+        localised_name = {"auto-research.prefix", {"auto-research.signal_text", {"technology-name.worker-robots-speed"}}},
         icon = "__auto-research__/graphics/icons/signal/worker-robots-speed.png",
         subgroup = "virtual-signal-auto-research",
         order = "g[auto-research]"
@@ -213,6 +217,7 @@ data:extend({
     {
         type = "virtual-signal",
         name = "worker-robots-storage",
+        localised_name = {"auto-research.prefix", {"auto-research.signal_text", {"technology-name.worker-robots-storage"}}},
         icon = "__auto-research__/graphics/icons/signal/worker-robots-storage.png",
         subgroup = "virtual-signal-auto-research",
         order = "g[auto-research]"
@@ -220,6 +225,7 @@ data:extend({
     {
         type = "virtual-signal",
         name = "character-logistic-slots",
+        localised_name = {"auto-research.prefix", {"auto-research.signal_text", {"technology-name.character-logistic-slots"}}},
         icon = "__auto-research__/graphics/icons/signal/character-logistic-slots.png",
         subgroup = "virtual-signal-auto-research",
         order = "g[auto-research]"
@@ -227,6 +233,7 @@ data:extend({
     {
         type = "virtual-signal",
         name = "character-logistic-trash-slots",
+        localised_name = {"auto-research.prefix", {"auto-research.signal_text", {"technology-name.character-logistic-trash-slots"}}},
         icon = "__auto-research__/graphics/icons/signal/character-logistic-trash-slots.png",
         subgroup = "virtual-signal-auto-research",
         order = "g[auto-research]"
@@ -234,6 +241,7 @@ data:extend({
     {
         type = "virtual-signal",
         name = "auto-character-logistic-trash-slots",
+        localised_name = {"auto-research.prefix", {"auto-research.signal_text", {"technology-name.auto-character-logistic-trash-slots"}}},
         icon = "__auto-research__/graphics/icons/signal/auto-character-logistic-trash-slots.png",
         subgroup = "virtual-signal-auto-research",
         order = "g[auto-research]"
@@ -241,6 +249,7 @@ data:extend({
     {
         type = "virtual-signal",
         name = "shotgun-shell-damage",
+        localised_name = {"auto-research.prefix", {"auto-research.signal_text", {"technology-name.shotgun-shell-damage"}}},
         icon = "__auto-research__/graphics/icons/signal/shotgun-shell-damage.png",
         subgroup = "virtual-signal-auto-research",
         order = "g[auto-research]"
@@ -248,6 +257,7 @@ data:extend({
     {
         type = "virtual-signal",
         name = "shotgun-shell-speed",
+        localised_name = {"auto-research.prefix", {"auto-research.signal_text", {"technology-name.shotgun-shell-speed"}}},
         icon = "__auto-research__/graphics/icons/signal/shotgun-shell-speed.png",
         subgroup = "virtual-signal-auto-research",
         order = "g[auto-research]"
@@ -255,6 +265,7 @@ data:extend({
     {
         type = "virtual-signal",
         name = "laser-turret-damage",
+        localised_name = {"auto-research.prefix", {"auto-research.signal_text", {"technology-name.laser-turret-damage"}}},
         icon = "__auto-research__/graphics/icons/signal/laser-turret-damage.png",
         subgroup = "virtual-signal-auto-research",
         order = "g[auto-research]"
@@ -262,6 +273,7 @@ data:extend({
     {
         type = "virtual-signal",
         name = "laser-turret-speed",
+        localised_name = {"auto-research.prefix", {"auto-research.signal_text", {"technology-name.laser-turret-speed"}}},
         icon = "__auto-research__/graphics/icons/signal/laser-turret-speed.png",
         subgroup = "virtual-signal-auto-research",
         order = "g[auto-research]"
@@ -269,6 +281,7 @@ data:extend({
     {
         type = "virtual-signal",
         name = "gun-turret-damage",
+        localised_name = {"auto-research.prefix", {"auto-research.signal_text", {"technology-name.gun-turret-damage"}}},
         icon = "__auto-research__/graphics/icons/signal/gun-turret-damage.png",
         subgroup = "virtual-signal-auto-research",
         order = "g[auto-research]"
@@ -276,6 +289,7 @@ data:extend({
     {
         type = "virtual-signal",
         name = "flamethrower-damage",
+        localised_name = {"auto-research.prefix", {"auto-research.signal_text", {"technology-name.flamethrower-damage"}}},
         icon = "__auto-research__/graphics/icons/signal/flamethrower-damage.png",
         subgroup = "virtual-signal-auto-research",
         order = "g[auto-research]"
@@ -283,6 +297,7 @@ data:extend({
     {
         type = "virtual-signal",
         name = "bullet-damage",
+        localised_name = {"auto-research.prefix", {"auto-research.signal_text", {"technology-name.bullet-damage"}}},
         icon = "__auto-research__/graphics/icons/signal/bullet-damage.png",
         subgroup = "virtual-signal-auto-research",
         order = "g[auto-research]"
@@ -290,6 +305,7 @@ data:extend({
     {
         type = "virtual-signal",
         name = "bullet-speed",
+        localised_name = {"auto-research.prefix", {"auto-research.signal_text", {"technology-name.bullet-speed"}}},
         icon = "__auto-research__/graphics/icons/signal/bullet-speed.png",
         subgroup = "virtual-signal-auto-research",
         order = "g[auto-research]"
@@ -297,6 +313,7 @@ data:extend({
     {
         type = "virtual-signal",
         name = "combat-robot-damage",
+        localised_name = {"auto-research.prefix", {"auto-research.signal_text", {"technology-name.combat-robot-damage"}}},
         icon = "__auto-research__/graphics/icons/signal/combat-robot-damage.png",
         subgroup = "virtual-signal-auto-research",
         order = "g[auto-research]"
@@ -304,6 +321,7 @@ data:extend({
     {
         type = "virtual-signal",
         name = "rocket-damage",
+        localised_name = {"auto-research.prefix", {"auto-research.signal_text", {"technology-name.rocket-damage"}}},
         icon = "__auto-research__/graphics/icons/signal/rocket-damage.png",
         subgroup = "virtual-signal-auto-research",
         order = "g[auto-research]"
@@ -311,6 +329,7 @@ data:extend({
     {
         type = "virtual-signal",
         name = "rocket-speed",
+        localised_name = {"auto-research.prefix", {"auto-research.signal_text", {"technology-name.rocket-speed"}}},
         icon = "__auto-research__/graphics/icons/signal/rocket-speed.png",
         subgroup = "virtual-signal-auto-research",
         order = "g[auto-research]"
@@ -318,6 +337,7 @@ data:extend({
     {
         type = "virtual-signal",
         name = "follower-robot-count",
+        localised_name = {"auto-research.prefix", {"auto-research.signal_text", {"technology-name.follower-robot-count"}}},
         icon = "__auto-research__/graphics/icons/signal/follower-robot-count.png",
         subgroup = "virtual-signal-auto-research",
         order = "g[auto-research]"
@@ -325,6 +345,7 @@ data:extend({
     {
         type = "virtual-signal",
         name = "inserter-capacity-bonus",
+        localised_name = {"auto-research.prefix", {"auto-research.signal_text", {"technology-name.inserter-capacity-bonus"}}},
         icon = "__auto-research__/graphics/icons/signal/inserter-capacity-bonus.png",
         subgroup = "virtual-signal-auto-research",
         order = "g[auto-research]"
