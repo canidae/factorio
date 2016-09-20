@@ -274,6 +274,47 @@ function onTick()
     end
 end
 
+-- user interface
+gui = {
+    toggleGui = function(player, config)
+        if player.gui.center.auto_research_gui then
+            player.gui.center.auto_research_gui.destroy()
+        else
+            local frame = player.gui.center.add{
+                type="frame",
+                name="auto_research_gui",
+                direction="vertical",
+                caption={"auto-research.prefix"}
+            }
+            local fewestIngredients = frame.add{type = "checkbox", name = "fewestIngredientsFirst", caption = {"auto-research.fewest_ingredients"}, state = config.auto_research_fewest_ingredients}
+            fewestIngredients.tooltip = {"auto-research.fewest_ingredients_tooltip"}
+
+            local extendedEnabled = frame.add{type = "checkbox", name = "extendedEnabled", caption = {"auto-research.extended_enabled"}, state = config.auto_research_extended_enabled}
+            extendedEnabled.tooltip = {"auto-research.extended_enabled_tooltip"}
+
+            local search = frame.add{type = "textfield", name = "search"}
+            search.tooltip = {"auto-research.search_tooltip"}
+
+            local scrollpane = frame.add{
+                type = "scroll-pane"
+            }
+            scrollpane.style.maximal_height = math.ceil(200)
+            scrollpane.horizontal_scroll_policy = "never"
+            scrollpane.vertical_scroll_policy = "auto"
+            local scrollflow = scrollpane.add{
+                type="flow",
+                direction="vertical"
+            }
+
+            for name, tech in pairs(player.force.technologies) do
+                local entry = scrollflow.add({type="frame", direction="horizontal"})
+                local entryFlow = entry.add({type="flow", direction="horizontal"})
+                entryFlow.add{type = "label", name = name, caption = tech.localised_name}
+            end
+        end
+    end
+}
+
 -- event hooks
 script.on_event(defines.events.on_research_finished, onResearchFinished)
 script.on_configuration_changed(init)
@@ -294,6 +335,7 @@ end)
 script.on_event("auto-research_toggle_extended", function(event)
     local force = game.players[event.player_index].force
     setAutoResearchExtendedEnabled(force, not getForceConfig(force).auto_research_extended_enabled)
+    gui.toggleGui(game.players[event.player_index], getForceConfig(force))
 end)
 
 script.on_event("auto-research_toggle_fewest_ingredients", function(event)
