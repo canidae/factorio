@@ -281,34 +281,63 @@ gui = {
             player.gui.center.auto_research_gui.destroy()
         else
             local frame = player.gui.center.add{
-                type="frame",
-                name="auto_research_gui",
-                direction="vertical",
-                caption={"auto-research.prefix"}
+                type = "frame",
+                name = "auto_research_gui",
+                direction = "vertical",
+                caption = {"auto-research.gui_title"}
             }
-            local fewestIngredients = frame.add{type = "checkbox", name = "fewestIngredientsFirst", caption = {"auto-research.fewest_ingredients"}, state = config.auto_research_fewest_ingredients}
+            local enabled = frame.add{type = "checkbox", name = "enabled", caption = {"auto-research.enabled"}, state = config.auto_research_enabled}
+            enabled.tooltip = {"auto-research.enabled_tooltip"}
+
+            local fewestIngredients = frame.add{type = "checkbox", name = "fewest_ingredients", caption = {"auto-research.fewest_ingredients"}, state = config.auto_research_fewest_ingredients}
             fewestIngredients.tooltip = {"auto-research.fewest_ingredients_tooltip"}
 
-            local extendedEnabled = frame.add{type = "checkbox", name = "extendedEnabled", caption = {"auto-research.extended_enabled"}, state = config.auto_research_extended_enabled}
+            local extendedEnabled = frame.add{type = "checkbox", name = "extended_enabled", caption = {"auto-research.extended_enabled"}, state = config.auto_research_extended_enabled}
             extendedEnabled.tooltip = {"auto-research.extended_enabled_tooltip"}
+
+            local allowSwitching = frame.add{type = "checkbox", name = "allow_switching", caption = {"auto-research.allow_switching"}, state = config.auto_research_allow_switching or false} -- TODO: remove "or false"
+            allowSwitching.tooltip = {"auto-research.allow_switching_tooltip"}
 
             local search = frame.add{type = "textfield", name = "search"}
             search.tooltip = {"auto-research.search_tooltip"}
 
             local scrollpane = frame.add{
-                type = "scroll-pane"
+                type = "scroll-pane",
+                name = "search_result"
             }
             scrollpane.style.maximal_height = math.ceil(200)
             scrollpane.horizontal_scroll_policy = "never"
             scrollpane.vertical_scroll_policy = "auto"
-            local scrollflow = scrollpane.add{
-                type="flow",
-                direction="vertical"
-            }
+        end
+    end,
 
-            for name, tech in pairs(player.force.technologies) do
-                local entry = scrollflow.add({type="frame", direction="horizontal"})
-                local entryFlow = entry.add({type="flow", direction="horizontal"})
+    drawSearchResult = function(player, text, signal)
+        local scrollpane = player.gui.center.auto_research_gui.search_result
+        if scrollpane.flow then
+            scrollpane.flow.destroy()
+        end
+        local scrollflow = scrollpane.add{
+            type = "flow",
+            name = "flow",
+            direction = "vertical"
+        }
+        for name, tech in pairs(player.force.technologies) do
+            local showtech = false
+            if signal then
+                for _, effect in pairs(tech.effects) do
+                    if effect.type == "unlock-recipe" then
+                        if effect.recipe == signal then
+                            showtech = true
+                        end
+                    end
+                end
+            elseif string.find(name, text) then
+                showtech = true
+            end
+            if showtech then
+                local entry = scrollflow.add({type = "frame", direction = "horizontal"})
+                local entryFlow = entry.add({type = "flow", direction = "horizontal"})
+                -- [UP][DOWN][AVOID] Technology Name [Item][Item][...]
                 entryFlow.add{type = "label", name = name, caption = tech.localised_name}
             end
         end
@@ -322,6 +351,11 @@ script.on_event(defines.events.on_player_created, init)
 script.on_event(defines.events.on_built_entity, onBuiltEntity)
 script.on_event(defines.events.on_robot_built_entity, onBuiltEntity)
 script.on_event(defines.events.on_tick, onTick)
+script.on_event(defines.events.on_gui_text_changed, function(event)
+    if event.element.name == "search" and event.element.parent.name == "auto_research_gui" then
+        gui.drawSearchResult(game.players[event.player_index], event.element.text, nil)
+    end
+end)
 script.on_event(defines.events.on_force_created, function(event)
     initForce(event.force)
 end)
