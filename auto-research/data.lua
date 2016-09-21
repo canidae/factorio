@@ -1,3 +1,20 @@
+data.raw["gui-style"].default["auto-research_sprite_button"] = {
+    type = "button_style",
+    parent = "button_style",
+    width = 24,
+    height = 24,
+    top_padding = 0,
+    right_padding = 0,
+    bottom_padding = 0,
+    left_padding = 0,
+    left_click_sound = {
+        {
+            filename = "__core__/sound/gui-click.ogg",
+            volume = 1
+        }
+    }
+}
+
 data:extend({
 	-- keybindings
 	{
@@ -15,6 +32,40 @@ data:extend({
 		name = "auto-research_toggle_extended",
 		key_sequence = "ALT + t"
 	},
+
+    -- sprites
+    {
+        type="sprite",
+        name="auto-research_prioritize_top",
+        filename = "__auto-research__/graphics/prioritize_top.png",
+        priority = "extra-high-no-scale",
+        width = 32,
+        height = 32,
+    },
+    {
+        type="sprite",
+        name="auto-research_prioritize_bottom",
+        filename = "__auto-research__/graphics/prioritize_bottom.png",
+        priority = "extra-high-no-scale",
+        width = 32,
+        height = 32,
+    },
+    {
+        type="sprite",
+        name="auto-research_deprioritize",
+        filename = "__auto-research__/graphics/deprioritize.png",
+        priority = "extra-high-no-scale",
+        width = 32,
+        height = 32,
+    },
+    {
+        type="sprite",
+        name="auto-research_delete",
+        filename = "__auto-research__/graphics/delete.png",
+        priority = "extra-high-no-scale",
+        width = 32,
+        height = 32,
+    },
 
 	-- entities
 	{

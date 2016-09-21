@@ -113,7 +113,7 @@ function canResearch(force, tech)
             return false
         end
     end
-    if not getForceConfig(force).auto_research_extended_enabled then
+    if not getForceConfig(force).extended_enabled then
         for _, ingredient in ipairs(tech.research_unit_ingredients) do
             if nonStandardIngredient(ingredient) then
                 return false
@@ -130,7 +130,7 @@ end
 
 function startNextResearch(force)
     local config = getForceConfig(force)
-    if not config.auto_research_enabled then
+    if not config.enabled then
         return
     end
 
@@ -138,7 +138,7 @@ function startNextResearch(force)
     --       it's possible to iterate all technologies and do necessary calculations once instead of each time a research finishes (which is causing a slight lag)
 
     -- see if there are some techs we should research first
-    local auto_research_fewest_ingredients = config.auto_research_fewest_ingredients
+    local config_fewest_ingredients = config.fewest_ingredients
     local researchCenterTechnologies = findResearchCenterTechnologies(force)
     local next_research = nil
     local least_effort = nil
@@ -147,7 +147,7 @@ function startNextResearch(force)
         if researchCenterTechnologies[techname] >= 1 or not next_research then
             local tech = getPretechIfNeeded(force.technologies[techname])
             if canResearch(force, tech) then
-                if not next_research or (auto_research_fewest_ingredients and #tech.research_unit_ingredients < fewest_ingredients) then
+                if not next_research or (config_fewest_ingredients and #tech.research_unit_ingredients < fewest_ingredients) then
                     next_research = techname
                     least_effort = 0
                     fewest_ingredients = #tech.research_unit_ingredients
@@ -161,9 +161,9 @@ function startNextResearch(force)
         if (researchCenterTechnologies[techname] or 1) >= 1 or not next_research then
             local should_replace = false
             local effort = tech.research_unit_count * tech.research_unit_energy
-            if not next_research or (researchCenterTechnologies[next_research] or 1) < 1 or (auto_research_fewest_ingredients and #tech.research_unit_ingredients < fewest_ingredients) then
+            if not next_research or (researchCenterTechnologies[next_research] or 1) < 1 or (config_fewest_ingredients and #tech.research_unit_ingredients < fewest_ingredients) then
                 should_replace = true
-            elseif (not auto_research_fewest_ingredients or #tech.research_unit_ingredients == fewest_ingredients) and effort < least_effort then
+            elseif (not config_fewest_ingredients or #tech.research_unit_ingredients == fewest_ingredients) and effort < least_effort then
                 should_replace = true
             end
             if should_replace and canResearch(force, force.technologies[techname]) then
@@ -181,7 +181,7 @@ function setAutoResearchEnabled(force, enabled)
     if not force then
         return
     end
-    getForceConfig(force).auto_research_enabled = enabled
+    getForceConfig(force).enabled = enabled
     tellForce(force, {"auto-research.toggle_msg", enabled and {"gui-mod-info.status-enabled"} or {"gui-mod-info.status-disabled"}}) -- "ternary" expression, lua style
 
     -- Start research for force if it haven't already
@@ -194,7 +194,7 @@ function setAutoResearchExtendedEnabled(force, enabled)
     if not force then
         return
     end
-    getForceConfig(force).auto_research_extended_enabled = enabled
+    getForceConfig(force).extended_enabled = enabled
     tellForce(force, {"auto-research.toggle_extended_msg", enabled and {"gui-mod-info.status-enabled"} or {"gui-mod-info.status-disabled"}}) -- "ternary" expression, lua style
 end
 
@@ -202,7 +202,7 @@ function setAutoResearchFewestIngredientsEnabled(force, enabled)
     if not force then
         return
     end
-    getForceConfig(force).auto_research_fewest_ingredients = enabled
+    getForceConfig(force).fewest_ingredients = enabled
     tellForce(force, {"auto-research.toggle_fewest_ingredients_msg", enabled and {"gui-mod-info.status-enabled"} or {"gui-mod-info.status-disabled"}}) -- "ternary" expression, lua style
 end
 
@@ -277,70 +277,217 @@ end
 -- user interface
 gui = {
     toggleGui = function(player, config)
-        if player.gui.center.auto_research_gui then
-            player.gui.center.auto_research_gui.destroy()
+        if player.gui.top.auto_research_gui then
+            player.gui.top.auto_research_gui.destroy()
         else
-            local frame = player.gui.center.add{
+            local force = player.force
+            local config = getForceConfig(force)
+            local frame = player.gui.top.add{
                 type = "frame",
                 name = "auto_research_gui",
                 direction = "vertical",
-                caption = {"auto-research.gui_title"}
+                caption = {"gui.title"}
             }
-            local enabled = frame.add{type = "checkbox", name = "enabled", caption = {"auto-research.enabled"}, state = config.auto_research_enabled}
-            enabled.tooltip = {"auto-research.enabled_tooltip"}
+            local frameflow = frame.add{
+                type = "flow",
+                name = "flow",
+                direction = "vertical"
+            }
 
-            local fewestIngredients = frame.add{type = "checkbox", name = "fewest_ingredients", caption = {"auto-research.fewest_ingredients"}, state = config.auto_research_fewest_ingredients}
-            fewestIngredients.tooltip = {"auto-research.fewest_ingredients_tooltip"}
+            -- checkboxes
+            frameflow.add{type = "checkbox", name = "auto_research_enabled", caption = {"gui.enabled"}, tooltip = {"gui.enabled_tooltip"}, state = config.enabled}
+            frameflow.add{type = "checkbox", name = "auto_research_fewest_ingredients", caption = {"gui.fewest_ingredients"}, tooltip = {"gui.fewest_ingredients_tooltip"}, state = config.fewest_ingredients}
+            frameflow.add{type = "checkbox", name = "auto_research_extended_enabled", caption = {"gui.extended_enabled"}, tooltip = {"gui.extended_enabled_tooltip"}, state = config.extended_enabled}
+            frameflow.add{type = "checkbox", name = "auto_research_allow_switching", caption = {"gui.allow_switching"}, tooltip = {"gui.allow_switching_tooltip"}, state = config.allow_switching or false} -- TODO: get rid of "or false"
 
-            local extendedEnabled = frame.add{type = "checkbox", name = "extended_enabled", caption = {"auto-research.extended_enabled"}, state = config.auto_research_extended_enabled}
-            extendedEnabled.tooltip = {"auto-research.extended_enabled_tooltip"}
-
-            local allowSwitching = frame.add{type = "checkbox", name = "allow_switching", caption = {"auto-research.allow_switching"}, state = config.auto_research_allow_switching or false} -- TODO: remove "or false"
-            allowSwitching.tooltip = {"auto-research.allow_switching_tooltip"}
-
-            local search = frame.add{type = "textfield", name = "search"}
-            search.tooltip = {"auto-research.search_tooltip"}
-
-            local scrollpane = frame.add{
+            -- prioritized techs
+            local prioritized = frameflow.add{
+                type = "frame",
+                name = "prioritized",
+                direction = "vertical"
+            }
+            prioritized.add{
+                type = "label",
+                caption = "Prioritized research" -- TODO: localization
+            }
+            prioritized.add{
                 type = "scroll-pane",
-                name = "search_result"
+                name = "list",
+                horizontal_scroll_policy = "never",
+                vertical_scroll_policy = "auto"
             }
-            scrollpane.style.maximal_height = math.ceil(200)
-            scrollpane.horizontal_scroll_policy = "never"
-            scrollpane.vertical_scroll_policy = "auto"
+            -- draw prioritized tech list
+            gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.prioritized.list, config.prioritized_techs, force)
+
+            -- deprioritized techs
+            local deprioritized = frameflow.add{
+                type = "frame",
+                name = "deprioritized",
+                direction = "vertical"
+            }
+            deprioritized.add{
+                type = "label",
+                caption = "Deprioritized research" -- TODO: localization
+            }
+            deprioritized.add{
+                type = "scroll-pane",
+                name = "list",
+                horizontal_scroll_policy = "never",
+                vertical_scroll_policy = "auto"
+            }
+            -- draw deprioritized tech list
+            gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.deprioritized.list, config.deprioritized_techs, force)
+
+            -- search for techs
+            local search_frame = frameflow.add{
+                type = "frame",
+                name = "search",
+                direction = "vertical"
+            }
+            local search_flow = search_frame.add{
+                type = "flow",
+                direction = "horizontal"
+            }
+            search_flow.add{
+                type = "label",
+                caption = "Search:" -- TODO: localization
+            }
+            search_flow.add{
+                type = "textfield",
+                name = "auto_research_search_text",
+                tooltip = {"gui.search_tooltip"}
+            }
+            search_frame.add{
+                type = "scroll-pane",
+                name = "result",
+                horizontal_scroll_policy = "never",
+                vertical_scroll_policy = "auto"
+            }
         end
     end,
 
-    drawSearchResult = function(player, text, signal)
-        local scrollpane = player.gui.center.auto_research_gui.search_result
+    onClick = function(event)
+        local player = game.players[event.player_index]
+        local force = player.force
+        local config = getForceConfig(force)
+        local name = event.element.name
+        if name == "auto_research_enabled" then
+            config.enabled = event.element.state
+        elseif name == "auto_research_fewest_ingredients" then
+            config.fewest_ingredients = event.element.state
+        elseif name == "auto_research_extended_enabled" then
+            config.extended_enabled = event.element.state
+        elseif name == "auto_research_allow_switching" then
+            config.allow_switching = event.element.state
+        elseif string.len(name) > 5 then
+            local prefix = string.sub(name, 1, 5)
+            local techname = string.sub(name, 6)
+            if force.technologies[techname] then
+                if not config.prioritized_techs then
+                    config.prioritized_techs = {}
+                end
+                if not config.deprioritized_techs then
+                    config.deprioritized_techs = {}
+                end
+                -- remove tech from prioritized list
+                for i = #config.prioritized_techs, 1, -1 do
+                    if config.prioritized_techs[i] == techname then
+                        table.remove(config.prioritized_techs, i)
+                    end
+                end
+                -- and from deprioritized list
+                for i = #config.deprioritized_techs, 1, -1 do
+                    if config.deprioritized_techs[i] == techname then
+                        table.remove(config.deprioritized_techs, i)
+                    end
+                end
+                if prefix == "ar_t_" then
+                    -- add tech to top of prioritized list
+                    table.insert(config.prioritized_techs, 1, techname)
+                elseif prefix == "ar_b_" then
+                    -- add tech to bottom of prioritized list
+                    table.insert(config.prioritized_techs, techname)
+                elseif prefix == "ar_a_" then
+                    -- add tech to list of deprioritized techs
+                    table.insert(config.deprioritized_techs, techname)
+                end
+                gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.prioritized.list, config.prioritized_techs, force)
+                gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.deprioritized.list, config.deprioritized_techs, force)
+            end
+        end
+    end,
+
+
+    updateTechnologyList = function(scrollpane, technologies, force)
         if scrollpane.flow then
             scrollpane.flow.destroy()
         end
-        local scrollflow = scrollpane.add{
+        local flow = scrollpane.add{
             type = "flow",
             name = "flow",
             direction = "vertical"
         }
+        if technologies then
+            for _, techname in ipairs(technologies) do
+                local entry = flow.add{type = "frame", direction = "horizontal"}
+                local entryFlow = entry.add{type = "flow", direction = "horizontal"}
+                entryFlow.add{type = "button", name = "ar_d_" .. techname, caption = "X"}
+                entryFlow.add{type = "label", caption = force.technologies[techname].localised_name}
+            end
+        end
+    end,
+
+    updateSearchResult = function(event)
+        if event.element.name ~= "auto_research_search_text" then
+            return
+        end
+        local text = event.element.text
+        local player = game.players[event.player_index]
+        local scrollpane = player.gui.top.auto_research_gui.flow.search.result
+        if scrollpane.flow then
+            scrollpane.flow.destroy()
+        end
+        local flow = scrollpane.add{
+            type = "flow",
+            name = "flow",
+            direction = "vertical"
+        }
+        local shown = 0
+        text = string.lower(text)
+        if text == "" then
+            goto skip_rest
+        end
         for name, tech in pairs(player.force.technologies) do
-            local showtech = false
-            if signal then
-                for _, effect in pairs(tech.effects) do
-                    if effect.type == "unlock-recipe" then
-                        if effect.recipe == signal then
+            if not tech.researched and tech.enabled then
+                if shown > 10 then
+                    goto skip_rest
+                end
+                local showtech = false
+                if string.find(name, text, 1, true) then
+                    showtech = true
+                else
+                    for _, effect in pairs(tech.effects) do
+                        if string.find(effect.type, text, 1, true) then
                             showtech = true
+                        elseif effect.type == "unlock-recipe" then
+                            if string.find(effect.recipe, text, 1, true) then
+                                showtech = true
+                            end
                         end
                     end
                 end
-            elseif string.find(name, text) then
-                showtech = true
-            end
-            if showtech then
-                local entry = scrollflow.add({type = "frame", direction = "horizontal"})
-                local entryFlow = entry.add({type = "flow", direction = "horizontal"})
-                -- [UP][DOWN][AVOID] Technology Name [Item][Item][...]
-                entryFlow.add{type = "label", name = name, caption = tech.localised_name}
+                if showtech then
+                    shown = shown + 1
+                    local entry = flow.add{type = "frame", direction = "horizontal"}
+                    local entryFlow = entry.add{type = "flow", direction = "horizontal"}
+                    entryFlow.add{type = "sprite-button", name = "ar_t_" .. name, sprite="auto-research_prioritize_top", style="auto-research_sprite_button"}
+                    entryFlow.add{type = "sprite-button", name = "ar_b_" .. name, sprite="auto-research_prioritize_bottom", style="auto-research_sprite_button"}
+                    entryFlow.add{type = "sprite-button", name = "ar_a_" .. name, sprite="auto-research_deprioritize", style="auto-research_sprite_button"}
+                    entryFlow.add{type = "label", name = name, caption = tech.localised_name}
+                end
             end
         end
+        ::skip_rest::
     end
 }
 
@@ -351,11 +498,8 @@ script.on_event(defines.events.on_player_created, init)
 script.on_event(defines.events.on_built_entity, onBuiltEntity)
 script.on_event(defines.events.on_robot_built_entity, onBuiltEntity)
 script.on_event(defines.events.on_tick, onTick)
-script.on_event(defines.events.on_gui_text_changed, function(event)
-    if event.element.name == "search" and event.element.parent.name == "auto_research_gui" then
-        gui.drawSearchResult(game.players[event.player_index], event.element.text, nil)
-    end
-end)
+script.on_event(defines.events.on_gui_click, gui.onClick)
+script.on_event(defines.events.on_gui_text_changed, gui.updateSearchResult)
 script.on_event(defines.events.on_force_created, function(event)
     initForce(event.force)
 end)
@@ -363,18 +507,18 @@ end)
 -- keybinding hooks
 script.on_event("auto-research_toggle", function(event)
     local force = game.players[event.player_index].force
-    setAutoResearchEnabled(force, not getForceConfig(force).auto_research_enabled)
+    setAutoResearchEnabled(force, not getForceConfig(force).enabled)
 end)
 
 script.on_event("auto-research_toggle_extended", function(event)
     local force = game.players[event.player_index].force
-    setAutoResearchExtendedEnabled(force, not getForceConfig(force).auto_research_extended_enabled)
+    setAutoResearchExtendedEnabled(force, not getForceConfig(force).extended_enabled)
     gui.toggleGui(game.players[event.player_index], getForceConfig(force))
 end)
 
 script.on_event("auto-research_toggle_fewest_ingredients", function(event)
     local force = game.players[event.player_index].force
-    setAutoResearchFewestIngredientsEnabled(force, not getForceConfig(force).auto_research_fewest_ingredients)
+    setAutoResearchFewestIngredientsEnabled(force, not getForceConfig(force).fewest_ingredients)
 end)
 
 -- Add remote interfaces for enabling/disabling Auto Research
