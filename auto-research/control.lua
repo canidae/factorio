@@ -202,7 +202,7 @@ end
 
 -- user interface
 gui = {
-    toggleGui = function(player, config)
+    toggleGui = function(player)
         if player.gui.top.auto_research_gui then
             player.gui.top.auto_research_gui.destroy()
         else
@@ -434,7 +434,7 @@ end)
 -- keybinding hooks
 script.on_event("auto-research_toggle", function(event)
     local player = game.players[event.player_index]
-    gui.toggleGui(player, getForceConfig(player.force))
+    gui.toggleGui(player)
 end)
 
 -- Add remote interfaces for enabling/disabling Auto Research
