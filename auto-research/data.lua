@@ -55,32 +55,32 @@ data:extend({
 
     -- sprites
     {
-        type="sprite",
-        name="auto_research_prioritize_top",
+        type = "sprite",
+        name = "auto_research_prioritize_top",
         filename = "__auto-research__/graphics/prioritize_top.png",
         priority = "extra-high-no-scale",
         width = 32,
         height = 32
     },
     {
-        type="sprite",
-        name="auto_research_prioritize_bottom",
+        type = "sprite",
+        name = "auto_research_prioritize_bottom",
         filename = "__auto-research__/graphics/prioritize_bottom.png",
         priority = "extra-high-no-scale",
         width = 32,
         height = 32
     },
     {
-        type="sprite",
-        name="auto_research_deprioritize",
+        type = "sprite",
+        name = "auto_research_deprioritize",
         filename = "__auto-research__/graphics/deprioritize.png",
         priority = "extra-high-no-scale",
         width = 32,
         height = 32
     },
     {
-        type="sprite",
-        name="auto_research_delete",
+        type = "sprite",
+        name = "auto_research_delete",
         filename = "__auto-research__/graphics/delete.png",
         priority = "extra-high-no-scale",
         width = 32,

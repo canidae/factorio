@@ -194,9 +194,6 @@ gui = {
 
             -- checkboxes
             frameflow.add{type = "checkbox", name = "auto_research_enabled", caption = {"gui.enabled"}, tooltip = {"gui.enabled_tooltip"}, state = config.enabled or false}
-            frameflow.add{type = "checkbox", name = "auto_research_fewest_ingredients", caption = {"gui.fewest_ingredients"}, tooltip = {"gui.fewest_ingredients_tooltip"}, state = config.fewest_ingredients or false}
-            frameflow.add{type = "checkbox", name = "auto_research_extended_enabled", caption = {"gui.extended_enabled"}, tooltip = {"gui.extended_enabled_tooltip"}, state = config.extended_enabled or false}
-            frameflow.add{type = "checkbox", name = "auto_research_allow_switching", caption = {"gui.allow_switching"}, tooltip = {"gui.allow_switching_tooltip"}, state = config.allow_switching or false}
         end
     end
 }
