@@ -1,39 +1,16 @@
-upgrade_config = { -- TODO: delete, replace with GUI
-    ["assembling-machine-2"] = {
-        modules = {
-            {
-                item = "speed-module-3",
-                count = 2
-            }
-        },
-        target = "assembling-machine-3"
-    },
-    ["assembling-machine-3"] = {
-        modules = {
-            {
-                item = "speed-module-3",
-                count = 2
-            },
-            {
-                item = "productivity-module-3",
-                count = 2
-            }
-        }
-    }
-}
-
 auto_upgrade_config_version = 1
 
 function getConfig(force)
     -- TODO: don't do this shit all the time :|
-    if not global.auto_upgrade_config then
-        global.auto_upgrade_config = {}
+    if not global.auto_upgrade then
+        global.auto_upgrade = {}
     end
-    if not global.auto_upgrade_config[force.name] or global.auto_upgrade_config[force.name].version ~= auto_upgrade_config_version then
-        global.auto_upgrade_config[force.name] = {
-            version = auto_upgrade_config_version,
+    if not global.auto_upgrade[force.name] or global.auto_upgrade[force.name].version ~= auto_upgrade_version then
+        global.auto_upgrade[force.name] = {
+            version = auto_upgrade_version,
             entities = {},
             entity = 1,
+            upgrade = {},
             upgrade_loc = {},
             roboports = {}
         }
@@ -41,14 +18,14 @@ function getConfig(force)
         -- can we improve this? why is it even so demanding? :s
         for _, surface in pairs(game.surfaces) do
             for _, entity in pairs(surface.find_entities_filtered{force = force.name}) do
-                global.auto_upgrade_config[force.name].entities[#global.auto_upgrade_config[force.name].entities + 1] = entity
+                global.auto_upgrade[force.name].entities[#global.auto_upgrade[force.name].entities + 1] = entity
                 if entity.logistic_cell then
-                    global.auto_upgrade_config[force.name].roboports[#global.auto_upgrade_config[force.name].roboports + 1] = entity
+                    global.auto_upgrade[force.name].roboports[#global.auto_upgrade[force.name].roboports + 1] = entity
                 end
             end
         end
     end
-    return global.auto_upgrade_config[force.name]
+    return global.auto_upgrade[force.name]
 end
 
 function onBuiltEntity(event)
@@ -143,12 +120,13 @@ function findNetworkOrPlayerInventory(entity)
 end
 
 function upgradeEntityIfNecessary(entity)
-    local upgrade = upgrade_config[entity.name]
+    local config = getConfig(entity.force)
+    local upgrade = config.upgrade[entity.name]
     if not upgrade then
         return
     end
     local network = findNetworkOrPlayerInventory(entity)
-    if network.get_item_count(upgrade.target) < 1 then
+    if not network or network.get_item_count(upgrade.target) < 1 then
         return
     end
     local replace = false
@@ -193,7 +171,73 @@ gui = {
             }
 
             -- checkboxes
-            frameflow.add{type = "checkbox", name = "auto_research_enabled", caption = {"gui.enabled"}, tooltip = {"gui.enabled_tooltip"}, state = config.enabled or false}
+            frameflow.add{type = "checkbox", name = "auto_upgrader_enabled", caption = {"gui.enabled"}, tooltip = {"gui.enabled_tooltip"}, state = config.enabled or false}
+
+            -- add "<new entity>" entry
+            local entryflow = frameflow.add{type = "flow", direction = "horizontal"}
+            -- add button for adding new entities to upgrade
+            entryflow.add{type = "sprite-button", style = "auto_upgrader_sprite_button", name = "auto_upgrader_add", sprite = "auto_upgrader_add"}
+            entryflow.add{type = "label", caption = {"gui.add_entity"}}
+
+            -- scrollpane
+            local scrollpane = frameflow.add{
+                type = "scroll-pane",
+                name = "scrollpane",
+                horizontal_scroll_policy = "never",
+                vertical_scroll_policy = "auto"
+            }
+            scrollpane.style.top_padding = 5
+            scrollpane.style.bottom_padding = 5
+            scrollpane.style.maximal_height = 192
+            gui.updateUpgradeList(scrollpane, force)
+        end
+    end,
+
+    onClick = function(event)
+        local player = game.players[event.player_index]
+        local force = player.force
+        local config = getConfig(force)
+        local name = event.element.name
+        if name == "auto_upgrader_enabled" then
+            --setAutoUpgraderEnabled(force, event.element.state)
+        elseif string.match(name, "auto_upgrader_add") then
+            local stack = player.cursor_stack
+
+            if stack.valid_for_read then
+                config.upgrade[stack.name] = {}
+                gui.updateUpgradeList(player.gui.top.auto_upgrader_gui.flow.scrollpane, force)
+            end
+        end
+    end,
+
+    updateUpgradeList = function(scrollpane, force)
+        if scrollpane.table then
+            scrollpane.table.destroy()
+        end
+
+        -- add table
+        local table = scrollpane.add{
+            type = "table",
+            name = "table",
+            colspan = 3
+        }
+
+        -- add list of entities to upgrade
+        local config = getConfig(force)
+        for entityname, settings in pairs(config.upgrade) do
+            local col1flow = table.add{type = "flow", direction = "horizontal"}
+            col1flow.add{type = "sprite-button", style = "auto_upgrader_sprite_button", name = "auto_upgrader_delete_" .. entityname, sprite = "auto_upgrader_delete"}
+            col1flow.add{type = "label", caption = game.entity_prototypes[entityname].localised_name} -- TODO: must check if entity exists, entities may disappear when user change active mods
+
+            -- button for adding modules
+            local col2flow = table.add{type = "flow", direction = "horizontal"}
+            col2flow.add{type = "sprite-button", style = "auto_upgrader_sprite_button", name = "auto_upgrader_add_module", sprite = "auto_upgrader_add_module"}
+            -- TODO: list added modules
+
+            -- button for upgrading entity
+            local col3flow = table.add{type = "flow", direction = "horizontal"}
+            col3flow.add{type = "sprite-button", style = "auto_upgrader_sprite_button", name = "auto_upgrader_upgrade_target", sprite = "auto_upgrader_upgrade_target"}
+            col3flow.add{type = "label", caption = settings.target or {"gui.upgrade_target"}}
         end
     end
 }
@@ -201,6 +245,7 @@ gui = {
 
 script.on_event(defines.events.on_built_entity, onBuiltEntity)
 script.on_event(defines.events.on_robot_built_entity, onBuiltEntity)
+script.on_event(defines.events.on_gui_click, gui.onClick)
 
 script.on_event(defines.events.on_tick, function(event)
     if game.tick % 60 > 0 then
@@ -221,4 +266,10 @@ script.on_event(defines.events.on_tick, function(event)
             end
         end
     end
+end)
+
+-- keybinding hooks
+script.on_event("auto_upgrader_toggle", function(event)
+    local player = game.players[event.player_index]
+    gui.toggleGui(player)
 end)

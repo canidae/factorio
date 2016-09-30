@@ -1,4 +1,4 @@
-function getForceConfig(force)
+function getConfig(force)
     if not global.auto_research_config then
         global.auto_research_config = {}
 
@@ -31,7 +31,7 @@ function setAutoResearchEnabled(force, enabled)
     if not force then
         return
     end
-    local config = getForceConfig(force)
+    local config = getConfig(force)
     config.enabled = enabled
 
     -- start new research
@@ -42,7 +42,7 @@ function setExtendedEnabled(force, enabled)
     if not force then
         return
     end
-    getForceConfig(force).extended_enabled = enabled
+    getConfig(force).extended_enabled = enabled
 
     -- start new research
     startNextResearch(force)
@@ -52,7 +52,7 @@ function setFewestIngredientsEnabled(force, enabled)
     if not force then
         return
     end
-    getForceConfig(force).fewest_ingredients = enabled
+    getConfig(force).fewest_ingredients = enabled
 
     -- start new research
     startNextResearch(force)
@@ -62,7 +62,7 @@ function setAllowSwitchingEnabled(force, enabled)
     if not force then
         return
     end
-    getForceConfig(force).allow_switching = enabled
+    getConfig(force).allow_switching = enabled
 
     -- start new research
     startNextResearch(force)
@@ -86,7 +86,7 @@ function canResearch(force, tech)
             return false
         end
     end
-    if not getForceConfig(force).extended_enabled then
+    if not getConfig(force).extended_enabled then
         for _, ingredient in ipairs(tech.research_unit_ingredients) do
             if nonStandardIngredient(ingredient) then
                 return false
@@ -102,7 +102,7 @@ function nonStandardIngredient(ingredient)
 end
 
 function startNextResearch(force)
-    local config = getForceConfig(force)
+    local config = getConfig(force)
     if not config.enabled or (force.current_research and not config.allow_switching) then
         return
     end
@@ -182,7 +182,7 @@ end
 
 function onResearchFinished(event)
     local force = event.research.force
-    local config = getForceConfig(force)
+    local config = getConfig(force)
     -- remove researched stuff from prioritized_techs and deprioritized_techs
     for i = #config.prioritized_techs, 1, -1 do
         local tech = force.technologies[config.prioritized_techs[i]]
@@ -207,7 +207,7 @@ gui = {
             player.gui.top.auto_research_gui.destroy()
         else
             local force = player.force
-            local config = getForceConfig(force)
+            local config = getConfig(force)
             local frame = player.gui.top.add{
                 type = "frame",
                 name = "auto_research_gui",
@@ -296,7 +296,7 @@ gui = {
     onClick = function(event)
         local player = game.players[event.player_index]
         local force = player.force
-        local config = getForceConfig(force)
+        local config = getConfig(force)
         local name = event.element.name
         if name == "auto_research_enabled" then
             setAutoResearchEnabled(force, event.element.state)
@@ -322,6 +322,7 @@ gui = {
                         table.remove(config.deprioritized_techs, i)
                     end
                 end
+                -- TODO: fix button names and use string.match
                 if prefix == "ar_t_" then
                     -- add tech to top of prioritized list
                     table.insert(config.prioritized_techs, 1, techname)
@@ -354,13 +355,13 @@ gui = {
         }
         if #technologies > 0 then
             for _, techname in ipairs(technologies) do
-                local entryFlow = flow.add{type = "flow", direction = "horizontal"}
-                entryFlow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "ar_d_" .. techname, sprite = "auto_research_delete"}
-                entryFlow.add{type = "label", caption = force.technologies[techname].localised_name}
+                local entryflow = flow.add{type = "flow", direction = "horizontal"}
+                entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "ar_d_" .. techname, sprite = "auto_research_delete"}
+                entryflow.add{type = "label", caption = force.technologies[techname].localised_name}
             end
         else
-            local entryFlow = flow.add{type = "flow", direction = "horizontal"}
-            entryFlow.add{type = "label", caption = {"gui.none"}}
+            local entryflow = flow.add{type = "flow", direction = "horizontal"}
+            entryflow.add{type = "label", caption = {"gui.none"}}
         end
     end,
 
@@ -398,11 +399,11 @@ gui = {
                 end
                 if showtech then
                     shown = shown + 1
-                    local entryFlow = flow.add{type = "flow", style = "auto_research_tech_flow", direction = "horizontal"}
-                    entryFlow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "ar_t_" .. name, sprite = "auto_research_prioritize_top"}
-                    entryFlow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "ar_b_" .. name, sprite = "auto_research_prioritize_bottom"}
-                    entryFlow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "ar_a_" .. name, sprite = "auto_research_deprioritize"}
-                    entryFlow.add{type = "label", style = "auto_research_tech_label", name = name, caption = tech.localised_name}
+                    local entryflow = flow.add{type = "flow", style = "auto_research_tech_flow", direction = "horizontal"}
+                    entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "ar_t_" .. name, sprite = "auto_research_prioritize_top"}
+                    entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "ar_b_" .. name, sprite = "auto_research_prioritize_bottom"}
+                    entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "ar_a_" .. name, sprite = "auto_research_deprioritize"}
+                    entryflow.add{type = "label", style = "auto_research_tech_label", name = name, caption = tech.localised_name}
                 end
             end
         end
@@ -413,14 +414,14 @@ gui = {
 -- event hooks
 script.on_configuration_changed(function()
     for _, force in pairs(game.forces) do
-        getForceConfig(force) -- triggers initialization of force config
+        getConfig(force) -- triggers initialization of force config
     end
 end)
 script.on_event(defines.events.on_player_created, function(event)
-    getForceConfig(game.players[event.player_index].force) -- triggers initialization of force config
+    getConfig(game.players[event.player_index].force) -- triggers initialization of force config
 end)
 script.on_event(defines.events.on_force_created, function(event)
-    getForceConfig(event.force) -- triggers initialization of force config
+    getConfig(event.force) -- triggers initialization of force config
 end)
 script.on_event(defines.events.on_research_finished, onResearchFinished)
 script.on_event(defines.events.on_gui_click, gui.onClick)
