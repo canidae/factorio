@@ -1,4 +1,4 @@
-data.raw["gui-style"].default["auto-research_header_label"] = {
+data.raw["gui-style"].default["auto_research_header_label"] = {
     type = "label_style",
     parent = "label_style",
     font_color = {r = .91764705882352941176, g = .85098039215686274509, b = .67450980392156862745},
@@ -9,20 +9,20 @@ data.raw["gui-style"].default["auto-research_header_label"] = {
     right_padding = 5
 }
 
-data.raw["gui-style"].default["auto-research_list_flow"] = {
+data.raw["gui-style"].default["auto_research_list_flow"] = {
     type = "flow_style",
     parent = "flow_style",
     vertical_spacing = 0
 }
 
-data.raw["gui-style"].default["auto-research_tech_flow"] = {
+data.raw["gui-style"].default["auto_research_tech_flow"] = {
     type = "flow_style",
     parent = "flow_style",
     horizontal_spacing = 0,
     resize_row_to_width = true
 }
 
-data.raw["gui-style"].default["auto-research_sprite_button"] = {
+data.raw["gui-style"].default["auto_research_sprite_button"] = {
     type = "button_style",
     parent = "button_style",
     width = 24,
@@ -39,7 +39,7 @@ data.raw["gui-style"].default["auto-research_sprite_button"] = {
     }
 }
 
-data.raw["gui-style"].default["auto-research_tech_label"] = {
+data.raw["gui-style"].default["auto_research_tech_label"] = {
     type = "label_style",
     parent = "label_style",
     left_padding = 3
@@ -49,14 +49,14 @@ data:extend({
 	-- keybindings
 	{
 		type = "custom-input",
-		name = "auto-research_toggle",
+		name = "auto_research_toggle",
 		key_sequence = "SHIFT + t"
 	},
 
     -- sprites
     {
         type="sprite",
-        name="auto-research_prioritize_top",
+        name="auto_research_prioritize_top",
         filename = "__auto-research__/graphics/prioritize_top.png",
         priority = "extra-high-no-scale",
         width = 32,
@@ -64,7 +64,7 @@ data:extend({
     },
     {
         type="sprite",
-        name="auto-research_prioritize_bottom",
+        name="auto_research_prioritize_bottom",
         filename = "__auto-research__/graphics/prioritize_bottom.png",
         priority = "extra-high-no-scale",
         width = 32,
@@ -72,7 +72,7 @@ data:extend({
     },
     {
         type="sprite",
-        name="auto-research_deprioritize",
+        name="auto_research_deprioritize",
         filename = "__auto-research__/graphics/deprioritize.png",
         priority = "extra-high-no-scale",
         width = 32,
@@ -80,7 +80,7 @@ data:extend({
     },
     {
         type="sprite",
-        name="auto-research_delete",
+        name="auto_research_delete",
         filename = "__auto-research__/graphics/delete.png",
         priority = "extra-high-no-scale",
         width = 32,

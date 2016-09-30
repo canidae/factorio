@@ -216,7 +216,7 @@ gui = {
             }
             local frameflow = frame.add{
                 type = "flow",
-                style = "auto-research_list_flow",
+                style = "auto_research_list_flow",
                 name = "flow",
                 direction = "vertical"
             }
@@ -230,7 +230,7 @@ gui = {
             -- prioritized techs
             frameflow.add{
                 type = "label",
-                style = "auto-research_header_label",
+                style = "auto_research_header_label",
                 caption = {"gui.prioritized_label"}
             }
             local prioritized = frameflow.add{
@@ -248,7 +248,7 @@ gui = {
             -- deprioritized techs
             frameflow.add{
                 type = "label",
-                style = "auto-research_header_label",
+                style = "auto_research_header_label",
                 caption = {"gui.deprioritized_label"}
             }
             local deprioritized = frameflow.add{
@@ -266,12 +266,12 @@ gui = {
             -- search for techs
             local searchflow = frameflow.add{
                 type = "flow",
-                style = "auto-research_tech_flow",
+                style = "auto_research_tech_flow",
                 direction = "horizontal"
             }
             searchflow.add{
                 type = "label",
-                style = "auto-research_header_label",
+                style = "auto_research_header_label",
                 caption = {"gui.search_label"}
             }
             searchflow.add{
@@ -348,14 +348,14 @@ gui = {
         end
         local flow = scrollpane.add{
             type = "flow",
-            style = "auto-research_list_flow",
+            style = "auto_research_list_flow",
             name = "flow",
             direction = "vertical"
         }
         if #technologies > 0 then
             for _, techname in ipairs(technologies) do
                 local entryFlow = flow.add{type = "flow", direction = "horizontal"}
-                entryFlow.add{type = "sprite-button", style = "auto-research_sprite_button", name = "ar_d_" .. techname, sprite = "auto-research_delete"}
+                entryFlow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "ar_d_" .. techname, sprite = "auto_research_delete"}
                 entryFlow.add{type = "label", caption = force.technologies[techname].localised_name}
             end
         else
@@ -371,7 +371,7 @@ gui = {
         end
         local flow = scrollpane.add{
             type = "flow",
-            style = "auto-research_list_flow",
+            style = "auto_research_list_flow",
             name = "flow",
             direction = "vertical"
         }
@@ -398,11 +398,11 @@ gui = {
                 end
                 if showtech then
                     shown = shown + 1
-                    local entryFlow = flow.add{type = "flow", style = "auto-research_tech_flow", direction = "horizontal"}
-                    entryFlow.add{type = "sprite-button", style = "auto-research_sprite_button", name = "ar_t_" .. name, sprite = "auto-research_prioritize_top"}
-                    entryFlow.add{type = "sprite-button", style = "auto-research_sprite_button", name = "ar_b_" .. name, sprite = "auto-research_prioritize_bottom"}
-                    entryFlow.add{type = "sprite-button", style = "auto-research_sprite_button", name = "ar_a_" .. name, sprite = "auto-research_deprioritize"}
-                    entryFlow.add{type = "label", style = "auto-research_tech_label", name = name, caption = tech.localised_name}
+                    local entryFlow = flow.add{type = "flow", style = "auto_research_tech_flow", direction = "horizontal"}
+                    entryFlow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "ar_t_" .. name, sprite = "auto_research_prioritize_top"}
+                    entryFlow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "ar_b_" .. name, sprite = "auto_research_prioritize_bottom"}
+                    entryFlow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "ar_a_" .. name, sprite = "auto_research_deprioritize"}
+                    entryFlow.add{type = "label", style = "auto_research_tech_label", name = name, caption = tech.localised_name}
                 end
             end
         end
@@ -432,13 +432,13 @@ script.on_event(defines.events.on_gui_text_changed, function(event)
 end)
 
 -- keybinding hooks
-script.on_event("auto-research_toggle", function(event)
+script.on_event("auto_research_toggle", function(event)
     local player = game.players[event.player_index]
     gui.toggleGui(player)
 end)
 
 -- Add remote interfaces for enabling/disabling Auto Research
-remote.add_interface("auto-research", {
+remote.add_interface("auto_research", {
     enabled = setAutoResearchEnabled,
     extended = setExtendedEnabled,
     fewest_ingredients = setFewestIngredientsEnabled,
