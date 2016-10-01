@@ -202,12 +202,24 @@ gui = {
             --setAutoUpgraderEnabled(force, event.element.state)
         elseif string.match(name, "auto_upgrader_add") then
             local stack = player.cursor_stack
-
             if stack.valid_for_read then
                 config.upgrade[stack.name] = {}
-                gui.updateUpgradeList(player.gui.top.auto_upgrader_gui.flow.scrollpane, force)
+            end
+        else
+            local delete_entity = string.match(name, "auto_upgrader_delete_(.*)")
+            if delete_entity then
+                config.upgrade[delete_entity] = nil
+            end
+
+            local upgrade_target = string.match(name, "auto_upgrader_upgrade_target_(.*)")
+            if upgrade_target then
+                local stack = player.cursor_stack
+                if stack.valid_for_read then
+                    config.upgrade[upgrade_target].target = stack.name
+                end
             end
         end
+        gui.updateUpgradeList(player.gui.top.auto_upgrader_gui.flow.scrollpane, force)
     end,
 
     updateUpgradeList = function(scrollpane, force)
@@ -236,8 +248,8 @@ gui = {
 
             -- button for upgrading entity
             local col3flow = table.add{type = "flow", direction = "horizontal"}
-            col3flow.add{type = "sprite-button", style = "auto_upgrader_sprite_button", name = "auto_upgrader_upgrade_target", sprite = "auto_upgrader_upgrade_target"}
-            col3flow.add{type = "label", caption = settings.target or {"gui.upgrade_target"}}
+            col3flow.add{type = "sprite-button", style = "auto_upgrader_sprite_button", name = "auto_upgrader_upgrade_target_" .. entityname, sprite = "auto_upgrader_upgrade_target"}
+            col3flow.add{type = "label", caption = settings.target and game.entity_prototypes[settings.target].localised_name or {"gui.upgrade_target"}}
         end
     end
 }
