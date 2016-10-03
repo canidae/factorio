@@ -23,8 +23,7 @@ data.raw["gui-style"].default["auto_upgrade_sprite_button"] = {
 
 data.raw["gui-style"].default["auto_upgrade_checkbox"] = {
     type = "checkbox_style",
-    parent = "checkbox_style",
-    bottom_padding = 12
+    parent = "checkbox_style"
 }
 
 data.raw["gui-style"].default["auto_upgrade_label"] = {

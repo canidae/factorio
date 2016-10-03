@@ -212,7 +212,7 @@ gui = {
                 type = "frame",
                 name = "auto_research_gui",
                 direction = "vertical",
-                caption = {"gui.title"}
+                caption = {"auto_research_gui.title"}
             }
             local frameflow = frame.add{
                 type = "flow",
@@ -222,16 +222,16 @@ gui = {
             }
 
             -- checkboxes
-            frameflow.add{type = "checkbox", name = "auto_research_enabled", caption = {"gui.enabled"}, tooltip = {"gui.enabled_tooltip"}, state = config.enabled or false}
-            frameflow.add{type = "checkbox", name = "auto_research_fewest_ingredients", caption = {"gui.fewest_ingredients"}, tooltip = {"gui.fewest_ingredients_tooltip"}, state = config.fewest_ingredients or false}
-            frameflow.add{type = "checkbox", name = "auto_research_extended_enabled", caption = {"gui.extended_enabled"}, tooltip = {"gui.extended_enabled_tooltip"}, state = config.extended_enabled or false}
-            frameflow.add{type = "checkbox", name = "auto_research_allow_switching", caption = {"gui.allow_switching"}, tooltip = {"gui.allow_switching_tooltip"}, state = config.allow_switching or false}
+            frameflow.add{type = "checkbox", name = "auto_research_enabled", caption = {"auto_research_gui.enabled"}, tooltip = {"auto_research_gui.enabled_tooltip"}, state = config.enabled or false}
+            frameflow.add{type = "checkbox", name = "auto_research_fewest_ingredients", caption = {"auto_research_gui.fewest_ingredients"}, tooltip = {"auto_research_gui.fewest_ingredients_tooltip"}, state = config.fewest_ingredients or false}
+            frameflow.add{type = "checkbox", name = "auto_research_extended_enabled", caption = {"auto_research_gui.extended_enabled"}, tooltip = {"auto_research_gui.extended_enabled_tooltip"}, state = config.extended_enabled or false}
+            frameflow.add{type = "checkbox", name = "auto_research_allow_switching", caption = {"auto_research_gui.allow_switching"}, tooltip = {"auto_research_gui.allow_switching_tooltip"}, state = config.allow_switching or false}
 
             -- prioritized techs
             frameflow.add{
                 type = "label",
                 style = "auto_research_header_label",
-                caption = {"gui.prioritized_label"}
+                caption = {"auto_research_gui.prioritized_label"}
             }
             local prioritized = frameflow.add{
                 type = "scroll-pane",
@@ -249,7 +249,7 @@ gui = {
             frameflow.add{
                 type = "label",
                 style = "auto_research_header_label",
-                caption = {"gui.deprioritized_label"}
+                caption = {"auto_research_gui.deprioritized_label"}
             }
             local deprioritized = frameflow.add{
                 type = "scroll-pane",
@@ -272,12 +272,12 @@ gui = {
             searchflow.add{
                 type = "label",
                 style = "auto_research_header_label",
-                caption = {"gui.search_label"}
+                caption = {"auto_research_gui.search_label"}
             }
             searchflow.add{
                 type = "textfield",
                 name = "auto_research_search_text",
-                tooltip = {"gui.search_tooltip"}
+                tooltip = {"auto_research_gui.search_tooltip"}
             }
             local search = frameflow.add{
                 type = "scroll-pane",
@@ -361,7 +361,7 @@ gui = {
             end
         else
             local entryflow = flow.add{type = "flow", direction = "horizontal"}
-            entryflow.add{type = "label", caption = {"gui.none"}}
+            entryflow.add{type = "label", caption = {"auto_research_gui.none"}}
         end
     end,
 

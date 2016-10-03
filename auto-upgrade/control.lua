@@ -10,8 +10,11 @@ function init()
         if not global.auto_upgrade[force.name] or global.auto_upgrade[force.name].version ~= auto_upgrade_version then
             global.auto_upgrade[force.name] = {
                 version = auto_upgrade_version,
+                enabled = true,
+                cap_module_level = false,
                 upgrade = {},
-                roboports = {}
+                roboports = {},
+                module_max_level = {}
             }
         else
             -- check that entities and modules still exist in game (and remove from settings if not)
@@ -26,7 +29,23 @@ function init()
                     end
                 end
             end
+            -- update max cap level for known modules
+            for modulebasename, _ in pairs(global.auto_upgrade[force.name].module_max_level) do
+                updateModuleMaxLevel(global.auto_upgrade[force.name], modulebasename)
+            end
         end
+    end
+end
+
+function updateModuleMaxLevel(config, modulebasename)
+    if not game.item_prototypes[modulebasename] then
+        config.module_max_level[modulebasename] = nil
+    else
+        local level = 1
+        while game.item_prototypes[modulebasename .. "-" .. (level + 1)] do
+            level = level + 1
+        end
+        config.module_max_level[modulebasename] = level
     end
 end
 
@@ -46,45 +65,43 @@ function onBuiltEntity(event)
     end
 end
 
-function findBestModules(inventory, requested, include_modules)
+function findBestModules(inventory, requested, include_modules, config)
     -- note: "inventory" may be LuaInventory or LuaLogisticsNetwork, they both provide (nearly) identical "get_item_count()" methods
     if not inventory or not requested then
         return nil
     end
     local result = {}
     for module, count in pairs(requested) do
-        local pre_item_name, level_cap = string.match(module, "^(.*)-(%d)$")
-        if level_cap then
-            -- likely multiple levels of this module, search in inventory how many are available, starting at highest level
-            local remaining = count
-            for i = level_cap, 1, -1 do
-                local item_name = i > 1 and (pre_item_name .. "-" .. i) or pre_item_name
-                if game.item_prototypes[item_name] then
-                    local count = inventory.get_item_count(item_name)
-                    if include_modules and include_modules[item_name] then
-                        count = count + include_modules[item_name]
-                    end
-                    if count > 0 then
-                        local min = math.min(count, remaining)
-                        result[#result + 1] = {
-                            item = item_name,
-                            count = min
-                        }
-                        remaining = remaining - min
-                        if remaining <= 0 then
-                            break
-                        end
+        local modulebasename, level_cap = string.match(module, "^(.*)-(%d*)$")
+        if not modulebasename then
+            modulebasename = module
+            level_cap = 1
+        end
+        if not config.cap_module_level then
+            if not config.module_max_level[modulebasename] then
+                updateModuleMaxLevel(config, modulebasename)
+            end
+            level_cap = config.module_max_level[modulebasename] or level_cap
+        end
+        local remaining = count
+        for i = level_cap, 1, -1 do
+            local item_name = i > 1 and (modulebasename .. "-" .. i) or modulebasename
+            if game.item_prototypes[item_name] then
+                local count = inventory.get_item_count(item_name)
+                if include_modules and include_modules[item_name] then
+                    count = count + include_modules[item_name]
+                end
+                if count > 0 then
+                    local min = math.min(count, remaining)
+                    result[#result + 1] = {
+                        item = item_name,
+                        count = min
+                    }
+                    remaining = remaining - min
+                    if remaining <= 0 then
+                        break
                     end
                 end
-            end
-        else
-            -- doesn't look like there are multiple levels of this module
-            local count = inventory.get_item_count(module)
-            if count > 0 then
-                result[#result + 1] = {
-                    item = module,
-                    count = min
-                }
             end
         end
     end
@@ -141,7 +158,7 @@ function upgradeEntityIfNecessary(entity)
     end
     local module_inventory = entity.get_module_inventory()
     local current_modules = module_inventory and module_inventory.get_contents() or nil
-    local best_modules = (replace or upgrade.modules) and findBestModules(network, upgrade.modules, current_modules)
+    local best_modules = (replace or upgrade.modules) and findBestModules(network, upgrade.modules, current_modules, config)
     if not replace and upgrade.modules and current_modules then
         -- possibly only upgrading modules, check if any modules can be upgraded
         for _, module in pairs(best_modules) do
@@ -159,7 +176,7 @@ function upgradeEntityIfNecessary(entity)
             for _, module in pairs(best_modules) do
                 best_count = best_count + module.count
             end
-            if best_count > current_count and not module_inventory.can_insert({name = best_modules[1].item}) then
+            if best_count > current_count and not module_inventory.can_insert{name = best_modules[1].item} then
                 -- can't place any more modules into this entity
                 replace = false
             end
@@ -171,18 +188,29 @@ function upgradeEntityIfNecessary(entity)
 end
 
 function replaceEntity(entity, target_prototype, modules)
+    local recipe = (entity.type == "crafting-machine" and entity.recipe) or nil
     entity.order_deconstruction(entity.force)
-    local new_entity = game.surfaces[entity.surface.name].create_entity{name = "entity-ghost", inner_name = target_prototype, direction = entity.direction, position = entity.position, force = entity.force}
+    local data = {
+        name = "entity-ghost",
+        inner_name = target_prototype,
+        direction = entity.direction,
+        position = entity.position,
+        force = entity.force
+    }
+    if entity.type == "underground-belt" then
+        data.type = entity.belt_to_ground_type
+    end
+    local new_entity = game.surfaces[entity.surface.name].create_entity(data)
     if modules then
         new_entity.item_requests = modules
     end
-    if entity.type == "crafting-machine" and entity.recipe then
+    if entity.type == "assembling-machine" and entity.recipe then
         new_entity.recipe = entity.recipe
     end
 end
 
 function tellPlayer(player, message)
-    player.print("[Auto Upgrade] " .. message) -- TODO: localization
+    player.print{"auto_upgrade_messages.prefix", message}
 end
 
 gui = {
@@ -209,7 +237,7 @@ gui = {
                 type = "frame",
                 name = "auto_upgrade_gui",
                 direction = "vertical",
-                caption = {"gui.title"}
+                caption = {"auto_upgrade_gui.title"}
             }
             local frameflow = frame.add{
                 type = "flow",
@@ -219,12 +247,14 @@ gui = {
             }
 
             -- checkboxes
-            frameflow.add{type = "checkbox", style = "auto_upgrade_checkbox", name = "auto_upgrade_enabled", caption = {"gui.enabled"}, tooltip = {"gui.enabled_tooltip"}, state = config.enabled or false}
+            frameflow.add{type = "checkbox", style = "auto_upgrade_checkbox", name = "auto_upgrade_enabled", caption = {"auto_upgrade_gui.enabled"}, tooltip = {"auto_upgrade_gui.enabled_tooltip"}, state = config.enabled or false}
+            frameflow.add{type = "checkbox", style = "auto_upgrade_checkbox", name = "auto_upgrade_cap_module_level", caption = {"auto_upgrade_gui.cap_module_level"}, tooltip = {"auto_upgrade_gui.cap_module_level_tooltip"}, state = config.cap_module_level or false}
 
             -- add "<new entity>" entry
             local entryflow = frameflow.add{type = "flow", direction = "horizontal"}
+            entryflow.style.top_padding = 12
             entryflow.add{type = "sprite-button", style = "auto_upgrade_sprite_button", name = "auto_upgrade_add", sprite = "auto_upgrade_add"}
-            entryflow.add{type = "label", style = "auto_upgrade_label", caption = {"gui.add_entity"}}
+            entryflow.add{type = "label", style = "auto_upgrade_label", caption = {"auto_upgrade_gui.add_entity"}}
 
             -- scrollpane
             local scrollpane = frameflow.add{
@@ -235,7 +265,7 @@ gui = {
             }
             scrollpane.style.top_padding = 5
             scrollpane.style.bottom_padding = 5
-            scrollpane.style.maximal_height = 192
+            scrollpane.style.maximal_height = 536
             gui.updateUpgradeList(scrollpane, force)
         end
     end,
@@ -247,6 +277,8 @@ gui = {
         local name = event.element.name
         if name == "auto_upgrade_enabled" then
             config.enabled = event.element.state
+        elseif name == "auto_upgrade_cap_module_level" then
+            config.cap_module_level = event.element.state
         elseif string.match(name, "^auto_upgrade_add$") then
             local stack = player.cursor_stack
             if stack.valid_for_read and not config.upgrade[stack.name] and game.entity_prototypes[stack.name] then
@@ -271,7 +303,7 @@ gui = {
                     if e_cb.left_top.x == t_cb.left_top.x and e_cb.left_top.y == t_cb.left_top.y and e_cb.right_bottom.x == t_cb.right_bottom.x and e_cb.right_bottom.y == t_cb.right_bottom.y then
                         config.upgrade[entityname].target = stack.name
                     else
-                        tellPlayer(player, "Can't upgrade " .. entityname .. " to " .. stack.name .. ", not the same entity size") -- TODO: localization
+                        tellPlayer(player, {"auto_upgrade_messages.cant_upgrade", entityname, stack.name}) 
                     end
                 else
                     config.upgrade[entityname].target = nil
@@ -347,7 +379,7 @@ gui = {
             -- button for upgrading entity
             local col3flow = table.add{type = "flow", direction = "horizontal"}
             col3flow.add{type = "sprite-button", style = "auto_upgrade_sprite_button", name = "auto_upgrade_target_" .. entityname, sprite = "auto_upgrade_target"}
-            col3flow.add{type = "label", style = "auto_upgrade_label", caption = settings.target and game.entity_prototypes[settings.target].localised_name or {"gui.upgrade_target"}}
+            col3flow.add{type = "label", style = "auto_upgrade_label", caption = settings.target and game.entity_prototypes[settings.target].localised_name or {"auto_upgrade_gui.upgrade_target"}}
         end
     end
 }
@@ -364,21 +396,26 @@ script.on_event(defines.events.on_tick, function(event)
     if game.tick % 60 > 0 then
         return
     end
-    -- TODO: upgrade more than 1 entity (of each kind) at a time. check how many we can upgrade (in storage), how many available construction robots there are. then increase time between each upgrade check
-    -- TODO: remove fully upgraded entities
+    -- TODO: remove on_tick handler when AU is disabled?
+    -- TODO: only upgrade modules if we can fill with best modules?
+    -- TODO: update more entities at the same time
     for _, force in pairs(game.forces) do
         local config = getConfig(force)
-        for entityname, settings in pairs(config.upgrade) do
-            settings.index = settings.index - 1
-            if settings.index < 1 then
-                settings.index = #settings.entities
-            end
-            if settings.index > 0 then
-                local entity = settings.entities[settings.index]
-                if entity.valid then
-                    upgradeEntityIfNecessary(entity)
-                else
-                    table.remove(settings.entities, settings.index)
+        if config.enabled then
+            for entityname, settings in pairs(config.upgrade) do
+                settings.index = settings.index - 1
+                if settings.index < 1 then
+                    settings.index = #settings.entities
+                end
+                if settings.index > 0 then
+                    local entity = settings.entities[settings.index]
+                    if entity.valid then
+                        if not entity.to_be_deconstructed(force) then
+                            upgradeEntityIfNecessary(entity)
+                        end
+                    else
+                        table.remove(settings.entities, settings.index)
+                    end
                 end
             end
         end
