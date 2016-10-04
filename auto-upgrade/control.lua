@@ -7,15 +7,21 @@ function init()
         }
     end
     for _, force in pairs(game.forces) do
-        if not global.auto_upgrade[force.name] or global.auto_upgrade[force.name].version ~= auto_upgrade_version then
+        if not global.auto_upgrade[force.name] or global.auto_upgrade[force.name].version ~= auto_upgrade_config_version then
             global.auto_upgrade[force.name] = {
-                version = auto_upgrade_version,
+                version = auto_upgrade_config_version,
                 enabled = true,
                 cap_module_level = false,
                 upgrade = {},
                 roboports = {},
                 module_max_level = {}
             }
+            -- find roboports
+            for _, surface in pairs(game.surfaces) do
+                for _, entity in pairs(surface.find_entities_filtered{name = "roboport", force = force.name}) do
+                    config.roboports[#config.roboports + 1] = entity
+                end
+            end
         else
             -- check that entities and modules still exist in game (and remove from settings if not)
             for entityname, settings in pairs(global.auto_upgrade[force.name].upgrade) do
@@ -106,6 +112,9 @@ function findBestModules(inventory, requested, include_modules, config)
         end
     end
     return result
+end
+
+function upgradeArea(force, area)
 end
 
 function findNetworkOrPlayerInventory(entity)
@@ -219,19 +228,6 @@ gui = {
         local config = getConfig(force)
         if player.gui.top.auto_upgrade_gui then
             player.gui.top.auto_upgrade_gui.destroy()
-
-            -- update tracked entities for player force
-            for _, surface in pairs(game.surfaces) do
-                for entityname, settings in pairs(config.upgrade) do
-                    for _, entity in pairs(surface.find_entities_filtered{name = entityname, force = force.name}) do
-                        settings.entities[#settings.entities + 1] = entity
-                    end
-                end
-                -- and roboports
-                for _, entity in pairs(surface.find_entities_filtered{name = "roboport", force = force.name}) do
-                    config.roboports[#config.roboports + 1] = entity
-                end
-            end
         else
             local frame = player.gui.top.add{
                 type = "frame",
@@ -287,6 +283,14 @@ gui = {
                     entities = {},
                     index = 1
                 }
+
+                -- find the entities for player force
+                local settings = config.upgrade[stack.name]
+                for _, surface in pairs(game.surfaces) do
+                    for _, entity in pairs(surface.find_entities_filtered{name = stack.name, force = force.name}) do
+                        settings.entities[#settings.entities + 1] = entity
+                    end
+                end
             end
         else
             local entityname = string.match(name, "^auto_upgrade_delete_(.*)$")
