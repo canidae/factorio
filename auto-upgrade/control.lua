@@ -19,7 +19,7 @@ function init()
             -- find roboports
             for _, surface in pairs(game.surfaces) do
                 for _, entity in pairs(surface.find_entities_filtered{name = "roboport", force = force.name}) do
-                    config.roboports[#config.roboports + 1] = entity
+                    global.auto_upgrade[force.name].roboports[#global.auto_upgrade[force.name].roboports + 1] = entity
                 end
             end
         else
@@ -37,13 +37,13 @@ function init()
             end
             -- update max cap level for known modules
             for modulebasename, _ in pairs(global.auto_upgrade[force.name].module_max_level) do
-                updateModuleMaxLevel(global.auto_upgrade[force.name], modulebasename)
+                updateModuleMaxLevel(modulebasename, global.auto_upgrade[force.name])
             end
         end
     end
 end
 
-function updateModuleMaxLevel(config, modulebasename)
+function updateModuleMaxLevel(modulebasename, config)
     if not game.item_prototypes[modulebasename] then
         config.module_max_level[modulebasename] = nil
     else
@@ -71,9 +71,8 @@ function onBuiltEntity(event)
     end
 end
 
-function findBestModules(inventory, requested, include_modules, config)
-    -- note: "inventory" may be LuaInventory or LuaLogisticsNetwork, they both provide (nearly) identical "get_item_count()" methods
-    if not inventory or not requested then
+function findBestModules(network, requested, include_modules, config)
+    if not network or not requested then
         return nil
     end
     local result = {}
@@ -85,7 +84,7 @@ function findBestModules(inventory, requested, include_modules, config)
         end
         if not config.cap_module_level then
             if not config.module_max_level[modulebasename] then
-                updateModuleMaxLevel(config, modulebasename)
+                updateModuleMaxLevel(modulebasename, config)
             end
             level_cap = config.module_max_level[modulebasename] or level_cap
         end
@@ -93,7 +92,7 @@ function findBestModules(inventory, requested, include_modules, config)
         for i = level_cap, 1, -1 do
             local item_name = i > 1 and (modulebasename .. "-" .. i) or modulebasename
             if game.item_prototypes[item_name] then
-                local count = inventory.get_item_count(item_name)
+                local count = network.get_item_count(item_name)
                 if include_modules and include_modules[item_name] then
                     count = count + include_modules[item_name]
                 end
@@ -114,11 +113,7 @@ function findBestModules(inventory, requested, include_modules, config)
     return result
 end
 
-function upgradeArea(force, area)
-end
-
-function findNetworkOrPlayerInventory(entity)
-    local config = getConfig(entity.force)
+function findNetwork(entity, config)
     for i = #config.roboports, 1, -1 do
         local roboport = config.roboports[i]
         if roboport.valid then
@@ -128,8 +123,8 @@ function findNetworkOrPlayerInventory(entity)
                 if entity.position.x >= position.x - range and entity.position.x <= position.x + range then
                     if entity.position.y >= position.y - range and entity.position.y <= position.y + range then
                         -- entity within reach of this roboport
-                        if roboport.logistic_network.available_construction_robots > 0 then
-                            -- and we got available construction robots
+                        if roboport.logistic_network.available_construction_robots > 5 then
+                            -- and we got available construction robots (more than 5 to avoid some DUTDUT)
                             return roboport.logistic_network
                         end
                     end
@@ -139,17 +134,14 @@ function findNetworkOrPlayerInventory(entity)
             table.remove(config.roboports, i)
         end
     end
-
-    -- TODO: check if player has personal roboport, construction robots and is within reach of entity
 end
 
-function upgradeEntityIfNecessary(entity)
-    local config = getConfig(entity.force)
+function upgradeEntityIfNecessary(entity, config)
     local upgrade = config.upgrade[entity.name]
     if not upgrade then
         return
     end
-    local network = findNetworkOrPlayerInventory(entity)
+    local network = findNetwork(entity, config)
     if not network then
         return
     end
@@ -397,12 +389,13 @@ script.on_event(defines.events.on_robot_built_entity, onBuiltEntity)
 script.on_event(defines.events.on_gui_click, gui.onClick)
 
 script.on_event(defines.events.on_tick, function(event)
-    if game.tick % 60 > 0 then
+    if game.tick % 16 > 0 then
         return
     end
     -- TODO: remove on_tick handler when AU is disabled?
     -- TODO: only upgrade modules if we can fill with best modules?
-    -- TODO: update more entities at the same time
+    -- TODO: need to track how many we're currently upgrading and see how many items there are in storage, or we'll upgrade stuff too soon and run out of materials
+    -- TODO: also keep track of player requested stuff, if stuff gets moved to player then we also will run out of materials
     for _, force in pairs(game.forces) do
         local config = getConfig(force)
         if config.enabled then
@@ -415,7 +408,7 @@ script.on_event(defines.events.on_tick, function(event)
                     local entity = settings.entities[settings.index]
                     if entity.valid then
                         if not entity.to_be_deconstructed(force) then
-                            upgradeEntityIfNecessary(entity)
+                            upgradeEntityIfNecessary(entity, config)
                         end
                     else
                         table.remove(settings.entities, settings.index)
