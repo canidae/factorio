@@ -306,10 +306,9 @@ gui = {
             setExtendedEnabled(force, event.element.state)
         elseif name == "auto_research_allow_switching" then
             setAllowSwitchingEnabled(force, event.element.state)
-        elseif string.len(name) > 5 then
-            local prefix = string.sub(name, 1, 5)
-            local techname = string.sub(name, 6)
-            if force.technologies[techname] then
+        else
+            local prefix, techname = string.match(name, "^auto_research_([^-]*)-(.*)$")
+            if techname and force.technologies[techname] then
                 -- remove tech from prioritized list
                 for i = #config.prioritized_techs, 1, -1 do
                     if config.prioritized_techs[i] == techname then
@@ -322,14 +321,13 @@ gui = {
                         table.remove(config.deprioritized_techs, i)
                     end
                 end
-                -- TODO: fix button names and use string.match
-                if prefix == "ar_t_" then
+                if prefix == "prioritize_top" then
                     -- add tech to top of prioritized list
                     table.insert(config.prioritized_techs, 1, techname)
-                elseif prefix == "ar_b_" then
+                elseif prefix == "prioritize_bottom" then
                     -- add tech to bottom of prioritized list
                     table.insert(config.prioritized_techs, techname)
-                elseif prefix == "ar_a_" then
+                elseif prefix == "deprioritize" then
                     -- add tech to list of deprioritized techs
                     table.insert(config.deprioritized_techs, techname)
                 end
@@ -356,7 +354,7 @@ gui = {
         if #technologies > 0 then
             for _, techname in ipairs(technologies) do
                 local entryflow = flow.add{type = "flow", direction = "horizontal"}
-                entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "ar_d_" .. techname, sprite = "auto_research_delete"}
+                entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "auto_research_delete-" .. techname, sprite = "auto_research_delete"}
                 entryflow.add{type = "label", caption = force.technologies[techname].localised_name}
             end
         else
@@ -400,9 +398,9 @@ gui = {
                 if showtech then
                     shown = shown + 1
                     local entryflow = flow.add{type = "flow", style = "auto_research_tech_flow", direction = "horizontal"}
-                    entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "ar_t_" .. name, sprite = "auto_research_prioritize_top"}
-                    entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "ar_b_" .. name, sprite = "auto_research_prioritize_bottom"}
-                    entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "ar_a_" .. name, sprite = "auto_research_deprioritize"}
+                    entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "auto_research_prioritize_top-" .. name, sprite = "auto_research_prioritize_top"}
+                    entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "auto_research_prioritize_bottom-" .. name, sprite = "auto_research_prioritize_bottom"}
+                    entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "auto_research_deprioritize-" .. name, sprite = "auto_research_deprioritize"}
                     entryflow.add{type = "label", style = "auto_research_tech_label", name = name, caption = tech.localised_name}
                 end
             end
