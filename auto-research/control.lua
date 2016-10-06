@@ -138,26 +138,28 @@ function startNextResearch(force)
         end
         return false
     end
+    local next_research_deprioritized = next_research == nil
     for techname, tech in pairs(force.technologies) do
         local effort = tech.research_unit_count * tech.research_unit_energy
         local should_replace = false
+        local deprioritized = isDeprioritized(config, techname)
         if not next_research then
             should_replace = true
-        elseif isDeprioritized(config, techname) then
-            if config.fewest_ingredients then
-                if #tech.research_unit_ingredients < fewest_ingredients then
-                    should_replace = true
-                elseif #tech.research_unit_ingredients == fewest_ingredients then
-                    if isDeprioritized(config, next_research) then
+        elseif next_research_deprioritized or deprioritized then
+            if next_research_deprioritized and deprioritized then
+                if config.fewest_ingredients then
+                    if #tech.research_unit_ingredients < fewest_ingredients then
+                        should_replace = true
+                    elseif #tech.research_unit_ingredients == fewest_ingredients then
                         if effort < least_effort then
                             should_replace = true
                         end
                     end
-                end
-            elseif isDeprioritized(config, next_research) then
-                if effort < least_effort then
+                elseif effort < least_effort then
                     should_replace = true
                 end
+            elseif not deprioritized then
+                should_replace = true
             end
         elseif config.fewest_ingredients then
             if #tech.research_unit_ingredients < fewest_ingredients then
@@ -174,6 +176,7 @@ function startNextResearch(force)
             next_research = techname
             least_effort = effort
             fewest_ingredients = #tech.research_unit_ingredients
+            next_research_deprioritized = deprioritized
         end
     end
 

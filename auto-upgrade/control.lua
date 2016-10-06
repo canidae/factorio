@@ -285,6 +285,7 @@ gui = {
                 end
             end
         else
+            -- TODO: fix naming like in auto-research (use "-" as delimiter)
             local entityname = string.match(name, "^auto_upgrade_delete_(.*)$")
             if entityname then
                 config.upgrade[entityname] = nil
