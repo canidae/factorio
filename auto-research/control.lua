@@ -246,7 +246,7 @@ gui = {
             prioritized.style.bottom_padding = 5
             prioritized.style.maximal_height = 192
             -- draw prioritized tech list
-            gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.prioritized, config.prioritized_techs, force)
+            gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.prioritized, config.prioritized_techs, player)
 
             -- deprioritized techs
             frameflow.add{
@@ -264,7 +264,7 @@ gui = {
             deprioritized.style.bottom_padding = 5
             deprioritized.style.maximal_height = 192
             -- draw deprioritized tech list
-            gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.deprioritized, config.deprioritized_techs, force)
+            gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.deprioritized, config.deprioritized_techs, player)
 
             -- search for techs
             local searchflow = frameflow.add{
@@ -334,8 +334,8 @@ gui = {
                     -- add tech to list of deprioritized techs
                     table.insert(config.deprioritized_techs, techname)
                 end
-                gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.prioritized, config.prioritized_techs, force)
-                gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.deprioritized, config.deprioritized_techs, force)
+                gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.prioritized, config.prioritized_techs, player)
+                gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.deprioritized, config.deprioritized_techs, player)
         
                 -- start new research
                 startNextResearch(force)
@@ -344,7 +344,7 @@ gui = {
     end,
 
 
-    updateTechnologyList = function(scrollpane, technologies, force)
+    updateTechnologyList = function(scrollpane, technologies, player)
         if scrollpane.flow then
             scrollpane.flow.destroy()
         end
@@ -356,9 +356,17 @@ gui = {
         }
         if #technologies > 0 then
             for _, techname in ipairs(technologies) do
-                local entryflow = flow.add{type = "flow", direction = "horizontal"}
+                local entryflow = flow.add{type = "flow", style = "auto_research_tech_flow", direction = "horizontal"}
+                local tech = player.force.technologies[techname]
                 entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "auto_research_delete-" .. techname, sprite = "auto_research_delete"}
-                entryflow.add{type = "label", caption = force.technologies[techname].localised_name}
+                entryflow.add{type = "label", style = "auto_research_tech_label", caption = tech.localised_name}
+                for _, ingredient in pairs(tech.research_unit_ingredients) do
+                    local sprite = "auto_research_tool_" .. ingredient.name
+                    if not player.gui.is_valid_sprite_path(sprite) then
+                        sprite = "auto_research_unknown"
+                    end
+                    entryflow.add{type = "sprite", style = "auto_research_sprite", sprite = sprite}
+                end
             end
         else
             local entryflow = flow.add{type = "flow", direction = "horizontal"}
@@ -405,6 +413,13 @@ gui = {
                     entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "auto_research_prioritize_bottom-" .. name, sprite = "auto_research_prioritize_bottom"}
                     entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "auto_research_deprioritize-" .. name, sprite = "auto_research_deprioritize"}
                     entryflow.add{type = "label", style = "auto_research_tech_label", name = name, caption = tech.localised_name}
+                    for _, ingredient in pairs(tech.research_unit_ingredients) do
+                        local sprite = "auto_research_tool_" .. ingredient.name
+                        if not player.gui.is_valid_sprite_path(sprite) then
+                            sprite = "auto_research_unknown"
+                        end
+                        entryflow.add{type = "sprite", style = "auto_research_sprite", sprite = sprite}
+                    end
                 end
             end
         end

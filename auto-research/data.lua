@@ -6,7 +6,7 @@ data.raw["gui-style"].default["auto_research_header_label"] = {
     top_padding = 0,
     bottom_padding = 0,
     left_padding = 0,
-    right_padding = 5
+    right_padding = 6
 }
 
 data.raw["gui-style"].default["auto_research_list_flow"] = {
@@ -42,7 +42,18 @@ data.raw["gui-style"].default["auto_research_sprite_button"] = {
 data.raw["gui-style"].default["auto_research_tech_label"] = {
     type = "label_style",
     parent = "label_style",
-    left_padding = 3
+    left_padding = 4,
+    right_padding = 4
+}
+
+data.raw["gui-style"].default["auto_research_sprite"] = {
+    type = "image_style",
+    width = 24,
+    height = 24,
+    top_padding = 0,
+    right_padding = 0,
+    bottom_padding = 0,
+    left_padding = 0
 }
 
 data:extend({
@@ -86,4 +97,28 @@ data:extend({
         width = 32,
         height = 32
     },
+    {
+        type = "sprite",
+        name = "auto_research_unknown",
+        filename = "__auto-research__/graphics/questionmark.png",
+        priority = "extra-high-no-scale",
+        width = 32,
+        height = 32
+    }
 })
+
+-- dynamically add sprites for tools (to display research ingredients)
+for _, tool in pairs(data.raw.tool) do
+    if tool.icon then
+        data:extend({
+            {
+                type = "sprite",
+                name = "auto_research_tool_" .. tool.name,
+                filename = tool.icon,
+                priority = "extra-high-no-scale",
+                width = 32,
+                height = 32
+            }
+        })
+    end
+end
