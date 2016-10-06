@@ -6,5 +6,5 @@
   "author": "canidae",
   "contact": "canidae@exent.net",
   "homepage": "http://exent.net",
-  "description": "Automates research. Show GUI with Shift+T (customizable). Chooses research in the following order: Fewest types of science packs (can be disabled), prioritized technologies, prerequisites for prioritized technologies, least effort technologies (effort = science packs * energy)."
+  "description": "Automates research. Toggle GUI with Shift+T (customizable). Chooses research in the following order: Fewest types of science packs (can be disabled), prioritized technologies, prerequisites for prioritized technologies, least effort technologies (effort = science packs * energy)."
 }
