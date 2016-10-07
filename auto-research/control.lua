@@ -103,9 +103,10 @@ end
 
 function startNextResearch(force)
     local config = getConfig(force)
-    if not config.enabled or (force.current_research and not config.allow_switching) then
+    if not config.enabled or (force.current_research and not config.allow_switching) or config.last_research_finish_tick == game.tick then
         return
     end
+    config.last_research_finish_tick = game.tick -- if multiple research finish same tick for same force, the user probably enabled all techs
 
     -- see if there are some techs we should research first
     local next_research = nil
