@@ -282,14 +282,10 @@ gui = {
                 end
             end
         else
-            -- TODO: fix naming like in auto-research (use "-" as delimiter)
-            local entityname = string.match(name, "^auto_upgrade_delete_(.*)$")
-            if entityname then
+            local prefix, entityname = string.match(name, "^auto_upgrade_([^-]*)-(.*)$")
+            if prefix == "delete" then
                 config.upgrade[entityname] = nil
-            end
-
-            local entityname = string.match(name, "^auto_upgrade_target_(.*)$")
-            if entityname then
+            elseif prefix == "target" then
                 local stack = player.cursor_stack
                 if stack.valid_for_read and entityname ~= stack.name then
                     local e_cb = game.entity_prototypes[entityname].collision_box
@@ -302,10 +298,7 @@ gui = {
                 else
                     config.upgrade[entityname].target = nil
                 end
-            end
-
-            local entityname = string.match(name, "^auto_upgrade_add_module_(.*)$")
-            if entityname then
+            elseif prefix == "add_module" then
                 local stack = player.cursor_stack
                 if stack.valid_for_read and game.item_prototypes[stack.name].type == "module" then
                     -- check if we got no more than 8 modules set up for entity
@@ -317,10 +310,8 @@ gui = {
                         config.upgrade[entityname].modules[stack.name] = (config.upgrade[entityname].modules[stack.name] or 0) + 1
                     end
                 end
-            end
-
-            local entityname, modulename = string.match(name, "^auto_upgrade_remove_module_(.*)_%d+_(.*)$")
-            if entityname then
+            elseif prefix == "remove_module" then
+                local entityname, modulename = string.match(entityname, "(.*)_%d+_(.*)$")
                 if config.upgrade[entityname].modules[modulename] > 1 then
                     config.upgrade[entityname].modules[modulename] = config.upgrade[entityname].modules[modulename] - 1
                 else
@@ -354,25 +345,25 @@ gui = {
         local config = getConfig(force)
         for entityname, settings in pairs(config.upgrade) do
             local col1flow = table.add{type = "flow", direction = "horizontal"}
-            col1flow.add{type = "sprite-button", style = "auto_upgrade_sprite_button", name = "auto_upgrade_delete_" .. entityname, sprite = "auto_upgrade_delete"}
+            col1flow.add{type = "sprite-button", style = "auto_upgrade_sprite_button", name = "auto_upgrade_delete-" .. entityname, sprite = "auto_upgrade_delete"}
             col1flow.add{type = "label", style = "auto_upgrade_label", caption = game.entity_prototypes[entityname].localised_name}
 
             -- button for adding/removing modules
             local col2flow = table.add{type = "flow", direction = "horizontal"}
-            col2flow.add{type = "sprite-button", style = "auto_upgrade_sprite_button", name = "auto_upgrade_add_module_" .. entityname, sprite = "auto_upgrade_add_module"}
+            col2flow.add{type = "sprite-button", style = "auto_upgrade_sprite_button", name = "auto_upgrade_add_module-" .. entityname, sprite = "auto_upgrade_add_module"}
             if settings.modules then
                 local button_id = 0
                 for modulename, count in pairs(settings.modules) do
                     for i = 1, count do
                         button_id = button_id + 1
-                        col2flow.add{type = "sprite-button", style = "auto_upgrade_sprite_button", name = "auto_upgrade_remove_module_" .. entityname .. "_" .. button_id .. "_" .. modulename, sprite = "auto_upgrade_module_" .. modulename}
+                        col2flow.add{type = "sprite-button", style = "auto_upgrade_sprite_button", name = "auto_upgrade_remove_module-" .. entityname .. "_" .. button_id .. "_" .. modulename, sprite = "auto_upgrade_module_" .. modulename}
                     end
                 end
             end
 
             -- button for upgrading entity
             local col3flow = table.add{type = "flow", direction = "horizontal"}
-            col3flow.add{type = "sprite-button", style = "auto_upgrade_sprite_button", name = "auto_upgrade_target_" .. entityname, sprite = "auto_upgrade_target"}
+            col3flow.add{type = "sprite-button", style = "auto_upgrade_sprite_button", name = "auto_upgrade_target-" .. entityname, sprite = "auto_upgrade_target"}
             col3flow.add{type = "label", style = "auto_upgrade_label", caption = settings.target and game.entity_prototypes[settings.target].localised_name or {"auto_upgrade_gui.upgrade_target"}}
         end
     end
@@ -389,10 +380,6 @@ script.on_event(defines.events.on_tick, function(event)
     if game.tick % 16 > 0 then
         return
     end
-    -- TODO: only upgrade modules if we can fill with best modules?
-    -- TODO: need to track how many we're currently upgrading and see how many items there are in storage, or we'll upgrade stuff too soon and run out of materials
-    -- TODO: also keep track of player requested stuff, if stuff gets moved to player then we also will run out of materials
-    -- TODO: instead of two TODOs above, don't upgrade if there's less than x items available (where x is customizable)
     for _, force in pairs(game.forces) do
         local config = getConfig(force)
         if config.enabled then
@@ -409,11 +396,9 @@ script.on_event(defines.events.on_tick, function(event)
                     end
                     if settings.index > 0 then
                         local entity = settings.entities[settings.index]
-                        if entity.valid then
-                            if not entity.to_be_deconstructed(force) then
-                                if upgradeEntityIfNecessary(entity, config) then
-                                    table.remove(settings.entities, settings.index)
-                                end
+                        if entity.valid and not entity.to_be_deconstructed(force) then
+                            if upgradeEntityIfNecessary(entity, config) then
+                                table.remove(settings.entities, settings.index)
                             end
                         else
                             table.remove(settings.entities, settings.index)

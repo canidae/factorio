@@ -1,10 +1,10 @@
 {
   "name": "auto-upgrade",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "factorio_version": "0.14",
   "title": "Auto Upgrade",
   "author": "canidae",
   "contact": "canidae@exent.net",
   "homepage": "http://exent.net",
-  "description": "[EXPERIMENTAL] Make robots automatically upgrade entities and entity modules."
+  "description": "Automatically install/upgrade modules and upgrade structures using construction robots."
 }
