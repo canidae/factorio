@@ -278,9 +278,7 @@ gui = {
                 -- find the entities for player force
                 local settings = config.upgrade[stack.name]
                 for _, surface in pairs(game.surfaces) do
-                    for _, entity in pairs(surface.find_entities_filtered{name = stack.name, force = force.name}) do
-                        settings.entities[#settings.entities + 1] = entity -- TODO: do we have to iterate?
-                    end
+                    settings.entities = surface.find_entities_filtered{name = stack.name, force = force.name}
                 end
             end
         else
@@ -388,11 +386,9 @@ script.on_event(defines.events.on_robot_built_entity, onBuiltEntity)
 script.on_event(defines.events.on_gui_click, gui.onClick)
 
 script.on_event(defines.events.on_tick, function(event)
-    --[[
-    if game.tick % 32 > 0 then
+    if game.tick % 16 > 0 then
         return
     end
-    ]]
     -- TODO: only upgrade modules if we can fill with best modules?
     -- TODO: need to track how many we're currently upgrading and see how many items there are in storage, or we'll upgrade stuff too soon and run out of materials
     -- TODO: also keep track of player requested stuff, if stuff gets moved to player then we also will run out of materials
