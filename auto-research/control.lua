@@ -87,7 +87,7 @@ function canResearch(force, tech)
         end
     end
     if not getConfig(force).extended_enabled then
-        for _, ingredient in ipairs(tech.research_unit_ingredients) do
+        for _, ingredient in pairs(tech.research_unit_ingredients) do
             if nonStandardIngredient(ingredient) then
                 return false
             end
@@ -112,7 +112,7 @@ function startNextResearch(force)
     local next_research = nil
     local least_effort = nil
     local fewest_ingredients = nil
-    for _, techname in ipairs(config.prioritized_techs) do
+    for _, techname in pairs(config.prioritized_techs) do
         local tech = getPretechIfNeeded(force.technologies[techname])
         local should_replace = false
         -- so easy to get this wrong (which i already did), so we'll take the less compact, but more readable route
@@ -132,7 +132,7 @@ function startNextResearch(force)
 
     -- if no prioritized tech should be researched first then research the "least effort" tech not researched yet
     local isDeprioritized = function(config, techname)
-        for _, deprioritized in ipairs(config.deprioritized_techs) do
+        for _, deprioritized in pairs(config.deprioritized_techs) do
             if techname == deprioritized then
                 return true
             end
@@ -356,7 +356,7 @@ gui = {
             direction = "vertical"
         }
         if #technologies > 0 then
-            for _, techname in ipairs(technologies) do
+            for _, techname in pairs(technologies) do
                 local entryflow = flow.add{type = "flow", style = "auto_research_tech_flow", direction = "horizontal"}
                 local tech = player.force.technologies[techname]
                 entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "auto_research_delete-" .. techname, sprite = "auto_research_delete"}
