@@ -394,7 +394,7 @@ gui = {
                     goto skip_rest
                 end
                 local showtech = false
-                if string.find(name, text, 1, true) then
+                if string.find(string.lower(name), text, 1, true) then
                     showtech = true
                 else
                     for _, effect in pairs(tech.effects) do
