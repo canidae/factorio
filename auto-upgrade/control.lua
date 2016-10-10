@@ -354,7 +354,7 @@ gui = {
 
         -- add list of entities to upgrade
         local config = getConfig(force)
-        for _, settings in pairs(config.upgrade) do
+        for entityname, settings in pairs(config.upgrade) do
             local col1flow = table.add{type = "flow", direction = "horizontal"}
             col1flow.add{type = "sprite-button", style = "auto_upgrade_sprite_button", name = "auto_upgrade_delete_" .. entityname, sprite = "auto_upgrade_delete"}
             col1flow.add{type = "label", style = "auto_upgrade_label", caption = game.entity_prototypes[entityname].localised_name}
