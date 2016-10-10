@@ -2,9 +2,7 @@ auto_upgrade_config_version = 1
 
 function init()
     if not global.auto_upgrade then
-        global.auto_upgrade = {
-            enabled = true
-        }
+        global.auto_upgrade = {}
     end
     for _, force in pairs(game.forces) do
         if not global.auto_upgrade[force.name] or global.auto_upgrade[force.name].version ~= auto_upgrade_config_version then
@@ -123,8 +121,8 @@ function findNetwork(entity, config)
                 if entity.position.x >= position.x - range and entity.position.x <= position.x + range then
                     if entity.position.y >= position.y - range and entity.position.y <= position.y + range then
                         -- entity within reach of this roboport
-                        if roboport.logistic_network.available_construction_robots > 5 then
-                            -- and we got available construction robots (more than 5 to avoid some DUTDUT)
+                        if roboport.logistic_network.available_construction_robots > 9 then
+                            -- and we got available construction robots (checking that we got a few to avoid DUTDUT)
                             return roboport.logistic_network
                         end
                     end
@@ -139,17 +137,17 @@ end
 function upgradeEntityIfNecessary(entity, config)
     local upgrade = config.upgrade[entity.name]
     if not upgrade then
-        return
+        return false
     end
     local network = findNetwork(entity, config)
     if not network then
-        return
+        return false
     end
     local area = {{entity.position.x - 0.5, entity.position.y - 0.5}, {entity.position.x + 0.5, entity.position.y + 0.5}}
     local proxy = entity.surface.find_entities_filtered{area = area, name = "item-request-proxy"}
     if proxy[1] ~= nil then
         -- there's an "item-request-proxy" for this entity, don't attempt to upgrade
-        return
+        return false
     end
 
     local replace = false
@@ -186,6 +184,7 @@ function upgradeEntityIfNecessary(entity, config)
     if replace then
         replaceEntity(entity, upgrade.target or entity.name, best_modules)
     end
+    return replace
 end
 
 function replaceEntity(entity, target_prototype, modules)
@@ -267,7 +266,7 @@ gui = {
             config.enabled = event.element.state
         elseif name == "auto_upgrade_cap_module_level" then
             config.cap_module_level = event.element.state
-        elseif string.match(name, "^auto_upgrade_add$") then
+        elseif name == "auto_upgrade_add" then
             local stack = player.cursor_stack
             if stack.valid_for_read and not config.upgrade[stack.name] and game.entity_prototypes[stack.name] then
                 config.upgrade[stack.name] = {
@@ -280,7 +279,7 @@ gui = {
                 local settings = config.upgrade[stack.name]
                 for _, surface in pairs(game.surfaces) do
                     for _, entity in pairs(surface.find_entities_filtered{name = stack.name, force = force.name}) do
-                        settings.entities[#settings.entities + 1] = entity
+                        settings.entities[#settings.entities + 1] = entity -- TODO: do we have to iterate?
                     end
                 end
             end
@@ -355,7 +354,7 @@ gui = {
 
         -- add list of entities to upgrade
         local config = getConfig(force)
-        for entityname, settings in pairs(config.upgrade) do
+        for _, settings in pairs(config.upgrade) do
             local col1flow = table.add{type = "flow", direction = "horizontal"}
             col1flow.add{type = "sprite-button", style = "auto_upgrade_sprite_button", name = "auto_upgrade_delete_" .. entityname, sprite = "auto_upgrade_delete"}
             col1flow.add{type = "label", style = "auto_upgrade_label", caption = game.entity_prototypes[entityname].localised_name}
@@ -381,7 +380,6 @@ gui = {
     end
 }
 
-
 script.on_init(init)
 script.on_configuration_changed(init)
 script.on_event(defines.events.on_force_created, init)
@@ -390,31 +388,47 @@ script.on_event(defines.events.on_robot_built_entity, onBuiltEntity)
 script.on_event(defines.events.on_gui_click, gui.onClick)
 
 script.on_event(defines.events.on_tick, function(event)
-    if game.tick % 16 > 0 then
+    --[[
+    if game.tick % 32 > 0 then
         return
     end
-    -- TODO: remove on_tick handler when AU is disabled?
+    ]]
     -- TODO: only upgrade modules if we can fill with best modules?
     -- TODO: need to track how many we're currently upgrading and see how many items there are in storage, or we'll upgrade stuff too soon and run out of materials
     -- TODO: also keep track of player requested stuff, if stuff gets moved to player then we also will run out of materials
+    -- TODO: instead of two TODOs above, don't upgrade if there's less than x items available (where x is customizable)
     for _, force in pairs(game.forces) do
         local config = getConfig(force)
         if config.enabled then
-            for entityname, settings in pairs(config.upgrade) do
-                settings.index = settings.index - 1
-                if settings.index < 1 then
-                    settings.index = #settings.entities
-                end
-                if settings.index > 0 then
-                    local entity = settings.entities[settings.index]
-                    if entity.valid then
-                        if not entity.to_be_deconstructed(force) then
-                            upgradeEntityIfNecessary(entity, config)
-                        end
-                    else
-                        table.remove(settings.entities, settings.index)
+            local upgrade_index = config.upgrade_index or 1
+            local valid_upgrade_index = false
+            for _, settings in pairs(config.upgrade) do
+                upgrade_index = upgrade_index - 1
+                if upgrade_index == 0 then
+                    valid_upgrade_index = true
+                    settings.index = settings.index - 1
+                    if settings.index < 1 then
+                        settings.index = #settings.entities
+                        config.upgrade_index = (config.upgrade_index or 1) + 1
                     end
+                    if settings.index > 0 then
+                        local entity = settings.entities[settings.index]
+                        if entity.valid then
+                            if not entity.to_be_deconstructed(force) then
+                                if upgradeEntityIfNecessary(entity, config) then
+                                    table.remove(settings.entities, settings.index)
+                                end
+                            end
+                        else
+                            table.remove(settings.entities, settings.index)
+                        end
+                    end
+                elseif upgrade_index < 0 then
+                    break
                 end
+            end
+            if not valid_upgrade_index then
+                config.upgrade_index = 1
             end
         end
     end
