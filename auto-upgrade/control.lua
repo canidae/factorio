@@ -1,14 +1,15 @@
 auto_upgrade_config_version = 1
 
 function init()
-    if not global.auto_upgrade then
-        global.auto_upgrade = {}
+    if not global.auto_upgrade or global.auto_upgrade.config_version ~= auto_upgrade_config_version then
+        global.auto_upgrade = {
+            config_version = auto_upgrade_config_version,
+            interval = 32
+        }
     end
     for _, force in pairs(game.forces) do
-        if not global.auto_upgrade[force.name] or global.auto_upgrade[force.name].version ~= auto_upgrade_config_version then
+        if not global.auto_upgrade[force.name] then
             global.auto_upgrade[force.name] = {
-                version = auto_upgrade_config_version,
-                enabled = true,
                 cap_module_level = false,
                 upgrade = {},
                 roboports = {},
@@ -245,9 +246,25 @@ gui = {
                 direction = "vertical"
             }
 
+            -- Auto Upgrade interval
+            frameflow.add{type = "label", style = "auto_upgrade_header_label", caption = "Auto Upgrade interval:"}
+            local intervalflow = frameflow.add{
+                type = "flow",
+                name = "intervalflow",
+                direction = "horizontal"
+            }
+            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-0", caption = {"auto_upgrade_gui.disabled"}, tooltip = {"auto_upgrade_gui.disabled_tooltip"}, state = global.auto_upgrade.interval == 0}
+            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-128", caption = "128", tooltip = {"auto_upgrade_gui.interval_tooltip", 128}, state = global.auto_upgrade.interval == 128}
+            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-64", caption = "64", tooltip = {"auto_upgrade_gui.interval_tooltip", 64}, state = global.auto_upgrade.interval == 64}
+            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-32", caption = "32", tooltip = {"auto_upgrade_gui.interval_tooltip", 32}, state = global.auto_upgrade.interval == 32}
+            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-16", caption = "16", tooltip = {"auto_upgrade_gui.interval_tooltip", 16}, state = global.auto_upgrade.interval == 16}
+            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-8", caption = "8", tooltip = {"auto_upgrade_gui.interval_tooltip", 8}, state = global.auto_upgrade.interval == 8}
+            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-4", caption = "4", tooltip = {"auto_upgrade_gui.interval_tooltip", 4}, state = global.auto_upgrade.interval == 4}
+            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-2", caption = "2", tooltip = {"auto_upgrade_gui.interval_tooltip", 2}, state = global.auto_upgrade.interval == 2}
+
             -- checkboxes
-            frameflow.add{type = "checkbox", style = "auto_upgrade_checkbox", name = "auto_upgrade_enabled", caption = {"auto_upgrade_gui.enabled"}, tooltip = {"auto_upgrade_gui.enabled_tooltip"}, state = config.enabled or false}
-            frameflow.add{type = "checkbox", style = "auto_upgrade_checkbox", name = "auto_upgrade_cap_module_level", caption = {"auto_upgrade_gui.cap_module_level"}, tooltip = {"auto_upgrade_gui.cap_module_level_tooltip"}, state = config.cap_module_level or false}
+            local first_checkbox = frameflow.add{type = "checkbox", style = "auto_upgrade_checkbox", name = "auto_upgrade_cap_module_level", caption = {"auto_upgrade_gui.cap_module_level"}, tooltip = {"auto_upgrade_gui.cap_module_level_tooltip"}, state = config.cap_module_level or false}
+            first_checkbox.style.top_padding = 12
 
             -- add "<new entity>" entry
             local entryflow = frameflow.add{type = "flow", direction = "horizontal"}
@@ -273,9 +290,7 @@ gui = {
         local force = player.force
         local config = getConfig(force)
         local name = event.element.name
-        if name == "auto_upgrade_enabled" then
-            config.enabled = event.element.state
-        elseif name == "auto_upgrade_cap_module_level" then
+        if name == "auto_upgrade_cap_module_level" then
             config.cap_module_level = event.element.state
         elseif name == "auto_upgrade_add" then
             local stack = player.cursor_stack
@@ -300,7 +315,14 @@ gui = {
             end
         else
             local prefix, entityname = string.match(name, "^auto_upgrade_([^-]*)-(.*)$")
-            if prefix == "delete" then
+            if prefix == "interval" then
+                local interval = tonumber(entityname)
+                if interval ~= global.auto_upgrade.interval then
+                    player.gui.top.auto_upgrade_gui.flow.intervalflow["auto_upgrade_" .. prefix .. "-" .. global.auto_upgrade.interval].state = false
+                    global.auto_upgrade.interval = interval
+                    setOnTick()
+                end
+            elseif prefix == "delete" then
                 config.upgrade[entityname] = nil
             elseif prefix == "target" then
                 local stack = player.cursor_stack
@@ -401,6 +423,50 @@ gui = {
     end
 }
 
+function setOnTick()
+    local interval = global.auto_upgrade and global.auto_upgrade.interval or 16
+    if interval == 0 then
+        script.on_event(defines.events.on_tick, nil)
+    else
+        script.on_event(defines.events.on_tick, function(event)
+            if game.tick % global.auto_upgrade.interval > 0 then
+                return
+            end
+            for _, force in pairs(game.forces) do
+                local config = getConfig(force)
+                local upgrade_index = config.upgrade_index or 1
+                local valid_upgrade_index = false
+                for _, settings in pairs(config.upgrade) do
+                    upgrade_index = upgrade_index - 1
+                    if upgrade_index == 0 then
+                        valid_upgrade_index = true
+                        settings.index = settings.index - 1
+                        if settings.index < 1 then
+                            settings.index = #settings.entities
+                            config.upgrade_index = (config.upgrade_index or 1) + 1
+                        end
+                        if settings.index > 0 then
+                            local entity = settings.entities[settings.index]
+                            if entity.valid and not entity.to_be_deconstructed(force) then
+                                if upgradeEntityIfNecessary(entity, config) then
+                                    table.remove(settings.entities, settings.index)
+                                end
+                            else
+                                table.remove(settings.entities, settings.index)
+                            end
+                        end
+                    elseif upgrade_index < 0 then
+                        break
+                    end
+                end
+                if not valid_upgrade_index then
+                    config.upgrade_index = 1
+                end
+            end
+        end)
+    end
+end
+
 script.on_init(init)
 script.on_configuration_changed(init)
 script.on_event(defines.events.on_force_created, init)
@@ -408,44 +474,7 @@ script.on_event(defines.events.on_built_entity, onBuiltEntity)
 script.on_event(defines.events.on_robot_built_entity, onBuiltEntity)
 script.on_event(defines.events.on_gui_click, gui.onClick)
 
-script.on_event(defines.events.on_tick, function(event)
-    if game.tick % 16 > 0 then
-        return
-    end
-    for _, force in pairs(game.forces) do
-        local config = getConfig(force)
-        if config.enabled then
-            local upgrade_index = config.upgrade_index or 1
-            local valid_upgrade_index = false
-            for _, settings in pairs(config.upgrade) do
-                upgrade_index = upgrade_index - 1
-                if upgrade_index == 0 then
-                    valid_upgrade_index = true
-                    settings.index = settings.index - 1
-                    if settings.index < 1 then
-                        settings.index = #settings.entities
-                        config.upgrade_index = (config.upgrade_index or 1) + 1
-                    end
-                    if settings.index > 0 then
-                        local entity = settings.entities[settings.index]
-                        if entity.valid and not entity.to_be_deconstructed(force) then
-                            if upgradeEntityIfNecessary(entity, config) then
-                                table.remove(settings.entities, settings.index)
-                            end
-                        else
-                            table.remove(settings.entities, settings.index)
-                        end
-                    end
-                elseif upgrade_index < 0 then
-                    break
-                end
-            end
-            if not valid_upgrade_index then
-                config.upgrade_index = 1
-            end
-        end
-    end
-end)
+setOnTick()
 
 -- keybinding hooks
 script.on_event("auto_upgrade_toggle", function(event)

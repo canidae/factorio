@@ -1,3 +1,10 @@
+data.raw["gui-style"].default["auto_upgrade_header_label"] = {
+    type = "label_style",
+    parent = "label_style",
+    font_color = {r = .91764705882352941176, g = .85098039215686274509, b = .67450980392156862745},
+    font = "default-semibold"
+}
+
 data.raw["gui-style"].default["auto_upgrade_list_flow"] = {
     type = "flow_style",
     parent = "flow_style",
