@@ -139,6 +139,15 @@ function upgradeEntityIfNecessary(entity, config)
     if not upgrade then
         return false
     end
+    local player
+    for _, force_player in pairs(entity.force.players) do
+        if not force_player.cursor_stack.valid_for_read then
+            player = force_player
+        end
+    end
+    if not player then
+        return false
+    end
     local network = findNetwork(entity, config)
     if not network then
         return false
@@ -161,56 +170,59 @@ function upgradeEntityIfNecessary(entity, config)
     if not replace and upgrade.modules and current_modules then
         -- possibly only upgrading modules, check if any modules can be upgraded
         for _, module in pairs(best_modules) do
-            if current_modules[module.item] ~= module.count then
+            if not current_modules[module.item] then
+                if module_inventory.can_insert{name = module.item} then
+                    replace = true
+                    break
+                end
+            elseif current_modules[module.item] ~= module.count then
                 replace = true
                 break
             end
         end
-        if replace then
-            local current_count = 0
-            for modulename, count in pairs(current_modules) do
-                current_count = current_count + count
-            end
-            local best_count = 0
-            for _, module in pairs(best_modules) do
-                best_count = best_count + module.count
-            end
-            if best_count > current_count and not module_inventory.can_insert{name = best_modules[1].item} then
-                -- can't place any more modules into this entity
-                replace = false
-            end
-        end
     end
     if replace then
-        replaceEntity(entity, upgrade.target or entity.name, best_modules)
+        replaceEntity(player, entity, upgrade.target or entity.name, best_modules)
     end
     return replace
 end
 
-function replaceEntity(entity, target_prototype, modules)
-    local recipe = (entity.type == "crafting-machine" and entity.recipe) or nil
-    entity.order_deconstruction(entity.force)
-    local data = {
-        name = "entity-ghost",
-        inner_name = target_prototype,
-        direction = entity.direction,
-        position = entity.position,
-        force = entity.force
-    }
-    if entity.type == "underground-belt" then
-        data.type = entity.belt_to_ground_type
-    end
-    local new_entity = game.surfaces[entity.surface.name].create_entity(data)
+function replaceEntity(player, entity, target_prototype, modules)
+    local force = player.force
+    local position = entity.position
+    local area = {{position.x - 0.5, position.y - 0.5}, {position.x + 0.5, position.y + 0.5}}
+    player.cursor_stack.set_stack{name = "blueprint", count = 1}
+    player.cursor_stack.create_blueprint{surface = entity.surface, force = force, area = area}
+    local blueprint = player.cursor_stack.get_blueprint_entities()
+    blueprint[1].name = target_prototype
+    player.cursor_stack.set_stack{name = "blueprint", count = 1}
+    player.cursor_stack.set_blueprint_entities(blueprint)
+    entity.order_deconstruction(force)
+    player.cursor_stack.build_blueprint{surface = entity.surface, force = force, position = position}
+    player.cursor_stack.clear()
+    -- request modules, if any
+    local new_entity = entity.surface.find_entity("entity-ghost", {position.x, position.y})
     if modules then
         new_entity.item_requests = modules
     end
-    if entity.type == "assembling-machine" and entity.recipe then
-        new_entity.recipe = entity.recipe
+    -- reconnect wires
+    if entity.circuit_connection_definitions then
+        for _, connection in pairs(entity.circuit_connection_definitions) do
+            if connection.target_entity.to_be_deconstructed(entity.force) then
+                local ghost_entity = connection.target_entity.surface.find_entity("entity-ghost", {connection.target_entity.position.x, connection.target_entity.position.y})
+                if not ghost_entity or not ghost_entity.valid then
+                    say(force, {"auto_upgrade_messages.reconnect_wire_fail", game.entity_prototypes[target_prototype].localised_name, new_entity.position.x, new_entity.position.y})
+                else
+                    connection.target_entity = ghost_entity
+                end
+            end
+            new_entity.connect_neighbour(connection)
+        end
     end
 end
 
-function tellPlayer(player, message)
-    player.print{"auto_upgrade_messages.prefix", message}
+function say(to, message)
+    to.print{"auto_upgrade_messages.prefix", message}
 end
 
 gui = {
@@ -240,8 +252,7 @@ gui = {
             -- add "<new entity>" entry
             local entryflow = frameflow.add{type = "flow", direction = "horizontal"}
             entryflow.style.top_padding = 12
-            entryflow.add{type = "sprite-button", style = "auto_upgrade_sprite_button", name = "auto_upgrade_add", sprite = "auto_upgrade_add"}
-            entryflow.add{type = "label", style = "auto_upgrade_label", caption = {"auto_upgrade_gui.add_entity"}}
+            entryflow.add{type = "sprite-button", style = "auto_upgrade_sprite_button", name = "auto_upgrade_add", sprite = "auto_upgrade_add", tooltip = {"auto_upgrade_gui.add_entity_tooltip"}}
 
             -- scrollpane
             local scrollpane = frameflow.add{
@@ -253,7 +264,7 @@ gui = {
             scrollpane.style.top_padding = 5
             scrollpane.style.bottom_padding = 5
             scrollpane.style.maximal_height = 536
-            gui.updateUpgradeList(scrollpane, force)
+            gui.updateUpgradeList(scrollpane, player)
         end
     end,
 
@@ -268,7 +279,13 @@ gui = {
             config.cap_module_level = event.element.state
         elseif name == "auto_upgrade_add" then
             local stack = player.cursor_stack
-            if stack.valid_for_read and not config.upgrade[stack.name] and game.entity_prototypes[stack.name] then
+            if not stack.valid_for_read then
+                say(player, {"auto_upgrade_messages.item_required"}) 
+            elseif not game.entity_prototypes[stack.name] then
+                say(player, {"auto_upgrade_messages.not_an_entity"}) 
+            elseif config.upgrade[stack.name] then
+                say(player, {"auto_upgrade_messages.already_added", game.entity_prototypes[stack.name].localised_name}) 
+            else
                 config.upgrade[stack.name] = {
                     modules = {},
                     entities = {},
@@ -287,20 +304,30 @@ gui = {
                 config.upgrade[entityname] = nil
             elseif prefix == "target" then
                 local stack = player.cursor_stack
-                if stack.valid_for_read and entityname ~= stack.name then
-                    local e_cb = game.entity_prototypes[entityname].collision_box
-                    local t_cb = game.entity_prototypes[stack.name].collision_box
-                    if e_cb.left_top.x == t_cb.left_top.x and e_cb.left_top.y == t_cb.left_top.y and e_cb.right_bottom.x == t_cb.right_bottom.x and e_cb.right_bottom.y == t_cb.right_bottom.y then
-                        config.upgrade[entityname].target = stack.name
+                if not stack.valid_for_read then
+                    if config.upgrade[entityname].target then
+                        config.upgrade[entityname].target = nil
                     else
-                        tellPlayer(player, {"auto_upgrade_messages.cant_upgrade", entityname, stack.name}) 
+                        say(player, {"auto_upgrade_messages.item_required"}) 
                     end
-                else
+                elseif not game.entity_prototypes[stack.name] then
+                    say(player, {"auto_upgrade_messages.not_an_entity"}) 
+                elseif game.entity_prototypes[entityname].type ~= game.entity_prototypes[stack.name].type then
+                    say(player, {"auto_upgrade_messages.entity_mismatch", game.entity_prototypes[entityname].localised_name, game.entity_prototypes[stack.name].localised_name}) 
+                elseif stack.name == config.upgrade[entityname].target then
                     config.upgrade[entityname].target = nil
+                elseif stack.name == entityname then
+                    say(player, {"auto_upgrade_messages.target_equals_source", game.entity_prototypes[entityname].localised_name}) 
+                else
+                    config.upgrade[entityname].target = stack.name
                 end
             elseif prefix == "add_module" then
                 local stack = player.cursor_stack
-                if stack.valid_for_read and game.item_prototypes[stack.name].type == "module" then
+                if not stack.valid_for_read then
+                    say(player, {"auto_upgrade_messages.item_required"}) 
+                elseif stack.type ~= "module" then
+                    say(player, {"auto_upgrade_messages.not_a_module"}) 
+                else
                     -- check if we got no more than 8 modules set up for entity
                     local module_count = 0
                     for modulename, count in pairs(config.upgrade[entityname].modules) do
@@ -325,11 +352,12 @@ gui = {
             end
         end
         if player.gui.top.auto_upgrade_gui then
-            gui.updateUpgradeList(player.gui.top.auto_upgrade_gui.flow.scrollpane, force)
+            gui.updateUpgradeList(player.gui.top.auto_upgrade_gui.flow.scrollpane, player)
         end
     end,
 
-    updateUpgradeList = function(scrollpane, force)
+    updateUpgradeList = function(scrollpane, player)
+        local force = player.force
         if scrollpane.table then
             scrollpane.table.destroy()
         end
@@ -356,7 +384,11 @@ gui = {
                 for modulename, count in pairs(settings.modules) do
                     for i = 1, count do
                         button_id = button_id + 1
-                        col2flow.add{type = "sprite-button", style = "auto_upgrade_sprite_button", name = "auto_upgrade_remove_module-" .. entityname .. "_" .. button_id .. "_" .. modulename, sprite = "auto_upgrade_module_" .. modulename}
+                        local sprite = "auto_upgrade_module_" .. modulename
+                        if not player.gui.is_valid_sprite_path(sprite) then
+                            sprite = "auto_upgrade_unknown"
+                        end
+                        col2flow.add{type = "sprite-button", style = "auto_upgrade_sprite_button", name = "auto_upgrade_remove_module-" .. entityname .. "_" .. button_id .. "_" .. modulename, sprite = sprite, tooltip = game.item_prototypes[modulename] and game.item_prototypes[modulename].localised_name or modulename}
                     end
                 end
             end

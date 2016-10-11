@@ -72,7 +72,15 @@ data:extend({
 		priority = "extra-high-no-scale",
 		width = 32,
 		height = 32
-	}
+	},
+    {
+        type = "sprite",
+        name = "auto_upgrade_unknown",
+        filename = "__auto-upgrade__/graphics/questionmark.png",
+        priority = "extra-high-no-scale",
+        width = 32,
+        height = 32
+    }
 })
 
 -- dynamically add sprites for modules
