@@ -2,7 +2,7 @@ data:extend({
     -- entities
     {
         type = "lab",
-        name = "player-habitat",
+        name = "habitat",
         icon = "__base__/graphics/icons/lab.png",
         flags = {"player-creation", "not-blueprintable"},
         max_health = 150,

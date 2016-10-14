@@ -48,7 +48,7 @@ script.on_event(defines.events.on_player_created, function(event)
     roboport_inventory = roboport.get_inventory(defines.inventory.roboport_material)
     roboport_inventory.insert{name = "repair-pack", count = 10}
     -- habitat
-    local habitat = surface.create_entity{name = "player-habitat", position = {-7, -1}, force = player.force}
+    local habitat = surface.create_entity{name = "habitat", position = {-7, -1}, force = player.force}
     habitat.operable = false
     -- electric pole
     local electric_pole = surface.create_entity{name = "medium-electric-pole", position = {-5, -2}, force = player.force}
@@ -95,21 +95,22 @@ script.on_event(defines.events.on_player_created, function(event)
 end)
 
 script.on_event(defines.events.on_put_item, function(event)
-    local position = event.position
     local player = game.players[event.player_index]
-    local surface = player.surface
-    local entityname = player.cursor_stack.name
-    local entity = surface.find_entity("entity-ghost", position)
+    if not player.cursor_stack.valid_for_read or player.cursor_stack.name == "blueprint" then
+        return
+    end
+    global.brave_new_world[player.name].cursor_stack = {name = player.cursor_stack.name, count = player.cursor_stack.count}
+    local entity = player.surface.find_entity("entity-ghost", event.position) -- TODO: doesn't work for entities larger than one tile
     if entity and entity.valid then
-        global.brave_new_world[player.name].cursor_stack = entity.ghost_name
         player.cursor_stack.clear()
     end
 end)
 
 script.on_event(defines.events.on_built_entity, function(event)
+    -- TODO: locomotives & wagons must be placed manually
+    -- TODO: rails bugs when using rail planner
     local entity = event.created_entity
-    local entityname = entity.name
-    if entityname == "entity-ghost" then
+    if entity.name == "entity-ghost" then
         return
     end
     local player = game.players[event.player_index]
@@ -120,15 +121,92 @@ script.on_event(defines.events.on_built_entity, function(event)
     player.cursor_stack.set_stack{name = "blueprint", count = 1}
     player.cursor_stack.create_blueprint{surface = entity.surface, force = force, area = area}
     entity.destroy()
-    player.cursor_stack.build_blueprint{surface = surface, force = force, position = position}
-    player.cursor_stack.set_stack{name = entityname, count = 1}
+    if player.cursor_stack.get_blueprint_entities() then
+        player.cursor_stack.build_blueprint{surface = surface, force = force, position = position}
+    end
+    player.cursor_stack.set_stack(global.brave_new_world[player.name].cursor_stack)
+end)
+
+function inventoryChanged(event)
+    local player = game.players[event.player_index]
+    -- player is only allowed to carry 1 of each item that can be placed as entity
+    -- everything else goes into entity opened or entity beneath mouse cursor
+    -- if no opened entity nor entity beneath mouse cursor, drop on ground
+    -- exceptions:
+    -- red, green and copper wires (need those for circuitry)
+    -- deconstruction planner, blueprints and blueprint book
+    -- locomotive, wagons?
+    -- modules?
+    -- upgrade builder?
+    local entity = player.opened or player.selected
+    local inventory = player.get_inventory(defines.inventory.god_main).get_contents()
+    for name, count in pairs(player.get_inventory(defines.inventory.god_quickbar).get_contents()) do
+        inventory[name] = inventory[name] and (inventory[name] + count) or count
+    end
+    for name, count in pairs(inventory) do
+        local to_remove = count - itemCountAllowed(name, count)
+        if to_remove > 0 then
+            local inserted = entity and entity.insert{name = name, count = to_remove} or 0
+            if to_remove - inserted > 0 then
+                -- TODO: some message about carrying items isn't allowed
+                player.surface.spill_item_stack(entity and entity.position or player.position, {name = name, count = to_remove - inserted})
+            end
+            player.remove_item{name = name, count = to_remove}
+        end
+    end
+end
+
+function itemCountAllowed(name, count)
+    if name == "red-wire" or name == "green-wire" or name == "copper-cable" then
+        -- need these for circuitry
+        return count
+    elseif name == "blueprint" or name == "deconstruction-planner" or name == "blueprint-book" then
+        -- these only place ghosts
+        return count
+    elseif name == "diesel-locomotive" or name == "cargo-wagon" then
+        -- locomotives must be placed manually
+        return count
+    elseif game.item_prototypes[name].place_result then
+        -- allow player to keep one of items that place entities
+        return 1
+    end
+    return 0
+end
+
+script.on_event(defines.events.on_player_main_inventory_changed, inventoryChanged)
+script.on_event(defines.events.on_player_quickbar_inventory_changed, inventoryChanged)
+script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
+    local player = game.players[event.player_index]
+    local cursor = player.cursor_stack
+    if cursor and cursor.valid_for_read then
+        local count_remaining = itemCountAllowed(cursor.name, cursor.count)
+        local to_remove = cursor.count - count_remaining
+        if to_remove > 0 then
+            local entity = player.opened or player.selected
+            local inserted = entity and entity.insert{name = cursor.name, count = to_remove} or 0
+            if to_remove - inserted > 0 then
+                -- TODO: some message about carrying items isn't allowed
+                player.surface.spill_item_stack(entity and entity.position or player.position, {name = cursor.name, count = to_remove - inserted})
+            end
+            if count_remaining > 0 then
+                cursor.count = count_remaining
+            else
+                cursor.clear()
+            end
+        end
+    end
 end)
 
 script.on_event(defines.events.on_tick, function(event)
+    --[[
     -- TODO: can we prevent exploration by setting player.position? - game.players[1].teleport{x, y}
+    for chunk in some_surface.get_chunks() do
+    	game.player.print("x: " .. chunk.x .. ", y: " .. chunk.y)
+	end
+    --]]
     for playername, player in pairs(global.brave_new_world) do
         if player.cursor_stack then
-            game.players[playername].cursor_stack.set_stack{name = player.cursor_stack, count = 1}
+            game.players[playername].cursor_stack.set_stack(player.cursor_stack)
             player.cursor_stack = nil
         end
     end
