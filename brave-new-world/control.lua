@@ -33,103 +33,132 @@ script.on_event(defines.events.on_player_created, function(event)
     player.force.manual_crafting_speed_modifier = -1
     player.insert{name = "deconstruction-planner", count = 1}
 
-    -- setup exploration boundary
-    forceConfig(force.name).explore_boundary = {{-64, -64}, {64, 64}} -- TODO: depends on player/force location, this won't work for multiforce games (with different locations)
-    force.chart(player.surface, {{-160, -160}, {160, 160}})
+    -- player/force start location
+    local x = 0
+    local y = 0
 
-    -- build initial structures
-    local x = -14 -- leftmost structure coordinate
-    local y = -9 -- topmost structure coordinate
+    -- oil is rare, but mandatory to continue research. add some oil patches near spawn point
+    local xx = math.random(32, 64) * (math.random(1, 2) == 1 and 1 or -1)
+    local yy = math.random(32, 64) * (math.random(1, 2) == 1 and 1 or -1)
     local surface = player.surface
-    -- place dirt beneath structures
     local tiles = {}
-    for xx = x, x + 27 do
-        for yy = y, y + 12 do
+    player.surface.create_entity{name = "crude-oil", amount = math.random(10000, 25000), position = {xx, yy}}
+    for xxx = xx - 2, xx + 2 do
+        for yyy = yy - 2, yy + 2 do
+            table.insert(tiles, {name = "grass-dry", position = {xxx, yyy}})
+        end
+    end
+    xxx = xx + math.random(-8, 8)
+    yyy = yy - math.random(4, 8)
+    for xxxx = xxx - 2, xxx + 2 do
+        for yyyy = yyy - 2, yyy + 2 do
+            table.insert(tiles, {name = "grass-dry", position = {xxxx, yyyy}})
+        end
+    end
+    player.surface.create_entity{name = "crude-oil", amount = math.random(10000, 25000), position = {xxx, yyy}}
+    xxx = xx + math.random(-8, 8)
+    yyy = yy + math.random(4, 8)
+    for xxxx = xxx - 2, xxx + 2 do
+        for yyyy = yyy - 2, yyy + 2 do
+            table.insert(tiles, {name = "grass-dry", position = {xxxx, yyyy}})
+        end
+    end
+    player.surface.create_entity{name = "crude-oil", amount = math.random(10000, 25000), position = {xxx, yyy}}
+    surface.set_tiles(tiles)
+
+    -- setup exploration boundary
+    forceConfig(force.name).explore_boundary = {{x - 64, y - 64}, {x + 64, y + 64}}
+    force.chart(player.surface, {{x - 160, y - 160}, {x + 160, y + 160}})
+
+    -- place dirt beneath structures
+    tiles = {}
+    for xx = x - 14, x + 13 do
+        for yy = y - 9, y + 3 do
             table.insert(tiles, {name = "grass-dry", position = {xx, yy}})
         end
     end
     surface.set_tiles(tiles)
-    -- remove trees/stones
-    local entities = surface.find_entities_filtered{area = {{x - 2, y - 2}, {x + 29, y + 14}}, force = "neutral"}
+    -- remove trees/stones/resources
+    local entities = surface.find_entities_filtered{area = {{x - 16, y - 11}, {x + 15, y + 5}}, force = "neutral"}
     for _, entity in pairs(entities) do
         entity.destroy()
     end
     -- place walls
-    for xx = x + 11, x + 16 do
-        surface.create_entity{name = "stone-wall", position = {xx, y + 2}, force = force}
-        surface.create_entity{name = "stone-wall", position = {xx, y + 10}, force = force}
+    for xx = x - 3, x + 2 do
+        surface.create_entity{name = "stone-wall", position = {xx, y - 7}, force = force}
+        surface.create_entity{name = "stone-wall", position = {xx, y + 1}, force = force}
     end
-    for yy = y + 2, y + 10 do
-        surface.create_entity{name = "stone-wall", position = {x + 11, yy}, force = force}
-        surface.create_entity{name = "stone-wall", position = {x + 16, yy}, force = force}
+    for yy = y - 7, y + 1 do
+        surface.create_entity{name = "stone-wall", position = {x - 3, yy}, force = force}
+        surface.create_entity{name = "stone-wall", position = {x + 2, yy}, force = force}
     end
     -- roboport
-    local roboport = surface.create_entity{name = "roboport", position = {x + 14, y + 5}, force = force}
+    local roboport = surface.create_entity{name = "roboport", position = {x, y - 4}, force = force}
     roboport.minable = false
     local roboport_inventory = roboport.get_inventory(defines.inventory.roboport_robot)
-    roboport_inventory.insert{name = "construction-robot", count = 50}
+    roboport_inventory.insert{name = "construction-robot", count = 100}
     roboport_inventory.insert{name = "logistic-robot", count = 50}
     roboport_inventory = roboport.get_inventory(defines.inventory.roboport_material)
     roboport_inventory.insert{name = "repair-pack", count = 10}
     -- radar
-    local radar = surface.create_entity{name = "radar", position = {x + 13, y + 8}, force = force}
+    local radar = surface.create_entity{name = "radar", position = {x - 1, y - 1}, force = force}
     radar.minable = false
     -- electric pole
-    local electric_pole = surface.create_entity{name = "medium-electric-pole", position = {x + 15, y + 7}, force = force}
+    local electric_pole = surface.create_entity{name = "medium-electric-pole", position = {x + 1, y - 2}, force = force}
     electric_pole.minable = false
     -- chests
-    local chest = surface.create_entity{name = "logistic-chest-storage", position = {x + 15, y + 8}, force = force}
+    local chest = surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y - 1}, force = force}
     chest.minable = false
     local chest_inventory = chest.get_inventory(defines.inventory.chest)
-    chest_inventory.insert{name = "iron-plate", count = 800}
-    chest_inventory.insert{name = "copper-plate", count = 800}
+    chest_inventory.insert{name = "iron-plate", count = 400}
+    chest_inventory.insert{name = "copper-plate", count = 400}
     chest_inventory.insert{name = "coal", count = 200}
     chest_inventory.insert{name = "stone", count = 50}
-    chest_inventory.insert{name = "transport-belt", count = 250}
+    chest_inventory.insert{name = "transport-belt", count = 300}
     chest_inventory.insert{name = "underground-belt", count = 20}
-    chest_inventory.insert{name = "splitter", count = 20}
+    chest_inventory.insert{name = "splitter", count = 10}
     chest_inventory.insert{name = "medium-electric-pole", count = 50}
-    chest_inventory.insert{name = "inserter", count = 20}
+    chest_inventory.insert{name = "inserter", count = 40}
     chest_inventory.insert{name = "offshore-pump", count = 2}
     chest_inventory.insert{name = "pipe", count = 50}
-    chest_inventory.insert{name = "boiler", count = 3}
-    chest_inventory.insert{name = "steam-engine", count = 2}
-    chest_inventory.insert{name = "assembling-machine-1", count = 4}
+    chest_inventory.insert{name = "boiler", count = 7}
+    chest_inventory.insert{name = "steam-engine", count = 5}
+    chest_inventory.insert{name = "assembling-machine-2", count = 4}
     chest_inventory.insert{name = "electric-mining-drill", count = 4}
     chest_inventory.insert{name = "stone-furnace", count = 4}
     chest_inventory.insert{name = "roboport", count = 4}
     chest_inventory.insert{name = "logistic-chest-storage", count = 4}
-    chest_inventory.insert{name = "logistic-chest-passive-provider", count = 4}
-    chest_inventory.insert{name = "logistic-chest-requester", count = 4}
+    chest_inventory.insert{name = "logistic-chest-passive-provider", count = 8}
+    chest_inventory.insert{name = "logistic-chest-requester", count = 8}
     chest_inventory.insert{name = "lab", count = 2}
-    chest = surface.create_entity{name = "logistic-chest-storage", position = {x + 15, y + 9}, force = force}
+    chest = surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y}, force = force}
     chest.minable = false
     -- solar panels and accumulators (left side)
-    surface.create_entity{name = "solar-panel", position = {x + 3, y + 3}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x + 3, y + 6}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x + 3, y + 9}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x + 6, y + 9}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x + 9, y + 3}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x + 9, y + 9}, force = force}
-    surface.create_entity{name = "medium-electric-pole", position = {x + 7, y + 5}, force = force}
-    surface.create_entity{name = "accumulator", position = {x + 6, y + 3}, force = force}
-    surface.create_entity{name = "accumulator", position = {x + 6, y + 5}, force = force}
-    surface.create_entity{name = "accumulator", position = {x + 6, y + 7}, force = force}
-    surface.create_entity{name = "accumulator", position = {x + 8, y + 7}, force = force}
-    surface.create_entity{name = "accumulator", position = {x + 10, y + 7}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x - 11, y - 6}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x - 11, y - 3}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x - 11, y}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x - 8, y}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x - 5, y - 6}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x - 5, y}, force = force}
+    surface.create_entity{name = "medium-electric-pole", position = {x - 7, y - 4}, force = force}
+    surface.create_entity{name = "accumulator", position = {x - 8, y - 6}, force = force}
+    surface.create_entity{name = "accumulator", position = {x - 8, y - 4}, force = force}
+    surface.create_entity{name = "accumulator", position = {x - 8, y - 2}, force = force}
+    surface.create_entity{name = "accumulator", position = {x - 6, y - 2}, force = force}
+    surface.create_entity{name = "accumulator", position = {x - 4, y - 2}, force = force}
     -- solar panels and accumulators (right side)
-    surface.create_entity{name = "solar-panel", position = {x + 18, y + 3}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x + 18, y + 9}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x + 21, y + 9}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x + 24, y + 3}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x + 24, y + 6}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x + 24, y + 9}, force = force}
-    surface.create_entity{name = "medium-electric-pole", position = {x + 20, y + 5}, force = force}
-    surface.create_entity{name = "accumulator", position = {x + 18, y + 7}, force = force}
-    surface.create_entity{name = "accumulator", position = {x + 20, y + 7}, force = force}
-    surface.create_entity{name = "accumulator", position = {x + 22, y + 3}, force = force}
-    surface.create_entity{name = "accumulator", position = {x + 22, y + 5}, force = force}
-    surface.create_entity{name = "accumulator", position = {x + 22, y + 7}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x + 4, y - 6}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x + 4, y}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x + 7, y}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x + 10, y - 6}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x + 10, y - 3}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x + 10, y}, force = force}
+    surface.create_entity{name = "medium-electric-pole", position = {x + 6, y - 4}, force = force}
+    surface.create_entity{name = "accumulator", position = {x + 4, y - 2}, force = force}
+    surface.create_entity{name = "accumulator", position = {x + 6, y - 2}, force = force}
+    surface.create_entity{name = "accumulator", position = {x + 8, y - 6}, force = force}
+    surface.create_entity{name = "accumulator", position = {x + 8, y - 4}, force = force}
+    surface.create_entity{name = "accumulator", position = {x + 8, y - 2}, force = force}
 end)
 
 script.on_event(defines.events.on_put_item, function(event)
@@ -162,7 +191,7 @@ script.on_event(defines.events.on_built_entity, function(event)
         player.cursor_stack.build_blueprint{surface = surface, force = force, position = position}
         local ghost_entity = surface.find_entity("entity-ghost", position)
         if ghost_entity then
-            config.remove_entities[game.tick + 120] = entity
+            config.remove_entities[game.tick + 60] = entity
             entity.minable = false
             entity.operable = false
         else
@@ -177,7 +206,6 @@ script.on_event(defines.events.on_built_entity, function(event)
         end
     end
     player.cursor_stack.set_stack(config.cursor_stack)
-    config.cursor_stack = nil
 end)
 
 function inventoryChanged(event)
@@ -191,7 +219,7 @@ function inventoryChanged(event)
     -- locomotive, wagons?
     -- modules?
     -- upgrade builder?
-    local entity = player.opened or player.selected
+    local entity = player.selected or player.opened
     local inventory = player.get_inventory(defines.inventory.god_main).get_contents()
     for name, count in pairs(player.get_inventory(defines.inventory.god_quickbar).get_contents()) do
         inventory[name] = inventory[name] and (inventory[name] + count) or count
@@ -201,7 +229,6 @@ function inventoryChanged(event)
         if to_remove > 0 then
             local inserted = entity and entity.insert{name = name, count = to_remove} or 0
             if to_remove - inserted > 0 then
-                -- TODO: some message about carrying items isn't allowed
                 player.surface.spill_item_stack(entity and entity.position or player.position, {name = name, count = to_remove - inserted})
             end
             player.remove_item{name = name, count = to_remove}
@@ -242,7 +269,6 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
             local entity = player.opened or player.selected
             local inserted = entity and entity.insert{name = cursor.name, count = to_remove} or 0
             if to_remove - inserted > 0 then
-                -- TODO: some message about carrying items isn't allowed
                 player.surface.spill_item_stack(entity and entity.position or player.position, {name = cursor.name, count = to_remove - inserted})
             end
             if count_remaining > 0 then
