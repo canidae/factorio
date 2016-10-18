@@ -67,8 +67,8 @@ script.on_event(defines.events.on_player_created, function(event)
     surface.set_tiles(tiles)
 
     -- setup exploration boundary
-    forceConfig(force.name).explore_boundary = {{x - 64, y - 64}, {x + 64, y + 64}}
-    force.chart(player.surface, {{x - 160, y - 160}, {x + 160, y + 160}})
+    forceConfig(force.name).explore_boundary = {{x - 96, y - 96}, {x + 96, y + 96}}
+    force.chart(player.surface, {{x - 192, y - 192}, {x + 192, y + 192}})
 
     -- place dirt beneath structures
     tiles = {}
@@ -297,8 +297,8 @@ script.on_event(defines.events.on_sector_scanned, function(event)
     local position = event.chunk_position
     local radar = event.radar
     local force_config = forceConfig(radar.force.name)
-    local x = ((position.x <= 0 and (position.x + 4)) or (position.x > 0 and (position.x - 4))) * 32
-    local y = ((position.y <= 0 and (position.y + 4)) or (position.y > 0 and (position.y - 4))) * 32
+    local x = ((position.x <= 0 and (position.x + 5)) or (position.x > 0 and (position.x - 5))) * 32
+    local y = ((position.y <= 0 and (position.y + 5)) or (position.y > 0 and (position.y - 5))) * 32
     if x < force_config.explore_boundary[1][1] then
         force_config.explore_boundary[1][1] = x
     elseif x > force_config.explore_boundary[2][1] then
