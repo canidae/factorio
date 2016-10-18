@@ -229,7 +229,12 @@ function inventoryChanged(event)
         if to_remove > 0 then
             local inserted = entity and entity.insert{name = name, count = to_remove} or 0
             if to_remove - inserted > 0 then
-                player.surface.spill_item_stack(entity and entity.position or player.position, {name = name, count = to_remove - inserted})
+                local pos = entity and entity.position or player.position
+                player.surface.spill_item_stack(pos, {name = name, count = to_remove - inserted})
+                local spilled = player.surface.find_entities_filtered{area = {{pos.x - 5, pos.y - 5}, {pos.x + 5, pos.y + 5}}, force = "neutral", type = "item-entity"}
+                for _, item in pairs(spilled) do
+                    item.order_deconstruction(player.force)
+                end
             end
             player.remove_item{name = name, count = to_remove}
         end
