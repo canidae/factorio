@@ -17,7 +17,7 @@ script.on_event(defines.events.on_player_created, function(event)
     local player = game.players[event.player_index]
     if not global.brave_new_world.players[player.name] then
         global.brave_new_world.players[player.name] = {
-            remove_entities = {}
+            ghost_entities = {}
         }
     end
     local force = player.force
@@ -31,6 +31,7 @@ script.on_event(defines.events.on_player_created, function(event)
     end
     player.force.manual_mining_speed_modifier = -0.99999999 -- allows removing ghosts with right-click
     player.force.manual_crafting_speed_modifier = -1
+    player.insert{name = "blueprint", count = 1}
     player.insert{name = "deconstruction-planner", count = 1}
 
     -- player/force start location
@@ -42,7 +43,7 @@ script.on_event(defines.events.on_player_created, function(event)
     local yy = math.random(32, 64) * (math.random(1, 2) == 1 and 1 or -1)
     local surface = player.surface
     local tiles = {}
-    player.surface.create_entity{name = "crude-oil", amount = math.random(8000, 16000), position = {xx, yy}}
+    surface.create_entity{name = "crude-oil", amount = math.random(8000, 16000), position = {xx, yy}}
     for xxx = xx - 2, xx + 2 do
         for yyy = yy - 2, yy + 2 do
             table.insert(tiles, {name = "grass-dry", position = {xxx, yyy}})
@@ -55,7 +56,7 @@ script.on_event(defines.events.on_player_created, function(event)
             table.insert(tiles, {name = "grass-dry", position = {xxxx, yyyy}})
         end
     end
-    player.surface.create_entity{name = "crude-oil", amount = math.random(10000, 25000), position = {xxx, yyy}}
+    surface.create_entity{name = "crude-oil", amount = math.random(10000, 25000), position = {xxx, yyy}}
     xxx = xx + math.random(-8, 8)
     yyy = yy + math.random(4, 8)
     for xxxx = xxx - 2, xxx + 2 do
@@ -63,12 +64,12 @@ script.on_event(defines.events.on_player_created, function(event)
             table.insert(tiles, {name = "grass-dry", position = {xxxx, yyyy}})
         end
     end
-    player.surface.create_entity{name = "crude-oil", amount = math.random(10000, 25000), position = {xxx, yyy}}
+    surface.create_entity{name = "crude-oil", amount = math.random(10000, 25000), position = {xxx, yyy}}
     surface.set_tiles(tiles)
 
     -- setup exploration boundary
     forceConfig(force.name).explore_boundary = {{x - 96, y - 96}, {x + 96, y + 96}}
-    force.chart(player.surface, {{x - 192, y - 192}, {x + 192, y + 192}})
+    force.chart(surface, {{x - 192, y - 192}, {x + 192, y + 192}})
 
     -- place dirt beneath structures
     tiles = {}
@@ -117,9 +118,10 @@ script.on_event(defines.events.on_player_created, function(event)
     chest_inventory.insert{name = "inserter", count = 50}
     chest_inventory.insert{name = "offshore-pump", count = 2}
     chest_inventory.insert{name = "pipe", count = 50}
+    chest_inventory.insert{name = "pipe-to-ground", count = 10}
     chest_inventory.insert{name = "boiler", count = 7}
     chest_inventory.insert{name = "steam-engine", count = 5}
-    chest_inventory.insert{name = "assembling-machine-2", count = 4}
+    chest_inventory.insert{name = "assembling-machine-3", count = 6}
     chest_inventory.insert{name = "electric-mining-drill", count = 6}
     chest_inventory.insert{name = "stone-furnace", count = 20}
     chest_inventory.insert{name = "roboport", count = 4}
@@ -157,79 +159,54 @@ script.on_event(defines.events.on_player_created, function(event)
     surface.create_entity{name = "accumulator", position = {x + 8, y - 2}, force = force}
 end)
 
-script.on_event(defines.events.on_put_item, function(event)
-    local player = game.players[event.player_index]
-    if not player.cursor_stack.valid_for_read or player.cursor_stack.name == "blueprint" then
-        return
-    end
-    local pos = event.position
-    local old_entity = player.surface.find_entity(player.cursor_stack.name, pos)
-    if old_entity and old_entity.name == player.cursor_stack.name then
-        -- replacing an item with same item (i.e. rotating belts). don't do anything fancy in on_built_entity
-        playerConfig(player.name).allow_building_entity = true
-    else
-        playerConfig(player.name).cursor_stack = {name = player.cursor_stack.name, count = player.cursor_stack.count}
-    end
-end)
-
 script.on_event(defines.events.on_built_entity, function(event)
     local entity = event.created_entity
     if entity.name == "entity-ghost" then
+        -- do nothing when placing ghosts
         return
-    end
-    if entity.name == "straight-rail" or entity.name == "curved-rail" then
+    elseif entity.name == "straight-rail" or entity.name == "curved-rail" then
         -- rail laying is a bit annoying. ghosting won't work, so just allow it
         return
-    end
-    if entity.name == "logistic-chest-storage" then
+    elseif entity.type == "locomotive" or entity.type == "cargo-wagon" or entity.type == "car" then
+        -- can't ghost locomotives/wagons/cars either
+        return
+    elseif entity.name == "logistic-chest-storage" then
         local network = entity.logistic_network
         if network and network.all_construction_robots > 0 and network.available_construction_robots == 0 then
             -- if there are no available construction robots and player place a logistic storage chest,
-            -- then that player is problaby in trouble. allow placing the one storage chest in player inventory
+            -- then that player is probably in trouble. we'll allow placing the storage chest without using robots
             return
         end
     end
     local player = game.players[event.player_index]
-    local config = playerConfig(player.name)
-    if config.allow_building_entity then
-        config.allow_building_entity = nil
-        return
-    end
-    local surface = entity.surface
-    local force = entity.force
-    local position = entity.position
-    local area = {{position.x - 0.5, position.y - 0.5}, {position.x + 0.5, position.y + 0.5}}
-    player.cursor_stack.set_stack{name = "blueprint", count = 1}
-    player.cursor_stack.create_blueprint{surface = entity.surface, force = force, area = area}
-    if player.cursor_stack.get_blueprint_entities() then
-        entity.order_deconstruction(force)
-        player.cursor_stack.build_blueprint{surface = surface, force = force, position = position}
-        local ghost_entity = surface.find_entity("entity-ghost", position)
-        local remove_tick = game.tick + 60
-        if ghost_entity then
-            while config.remove_entities[remove_tick] do
-                -- somehow it's actually possible to get two entities on same tick, this loop will find an available slot if that happens
-                remove_tick = remove_tick + 1
-            end
-            config.remove_entities[remove_tick] = entity
-            if entity.type == "electric-pole" then
-                entity.disconnect_neighbour() -- disconnect power poles as they work even when marked for deconstruction
-            end
-            entity.minable = false
-            entity.operable = false
-        else
-            -- can't place ghost beneath some entities for some reason (rails, offshore pumps (sometimes)). we'll have to allow placing those :(
-            -- TODO: unable to place ghost happens annoyingly often in some games. don't know why
-            entity.cancel_deconstruction(force)
-            if config.cursor_stack then
-                config.cursor_stack.count = config.cursor_stack.count - 1
-                if config.cursor_stack.count <= 0 then
-                    config.cursor_stack = nil
-                end
-            end
+    local cursor = player.cursor_stack
+    if cursor and cursor.valid_for_read then
+        -- happens when we build eg. a transport belt on top of a transport belt
+        if cursor.name ~= entity.name then
+            -- TODO: check if this ever happens
+            game.print("Cursor unexpectedly valid for read: " .. cursor.name .. " - " .. entity.name)
         end
+    else
+        -- put item back on cursor
+        cursor.set_stack{name = entity.name, count = 1}
+
+        -- disable built entity
+        entity.active = false
+        entity.minable = false
+        entity.operable = false
+        if entity.type == "electric-pole" then
+            entity.disconnect_neighbour() -- disconnect power poles as they work even when disabled
+        end
+
+        -- add entity to list to entities to create ghosts of
+        local config = playerConfig(player.name)
+        local remove_tick = game.tick + 60
+        while config.ghost_entities[remove_tick] do
+            -- somehow it's actually possible to get two entities on same tick, this loop will find an available slot if that happens
+            remove_tick = remove_tick + 1
+        end
+        config.ghost_entities[remove_tick] = entity
     end
-    player.cursor_stack.set_stack(config.cursor_stack)
 end)
 
 function inventoryChanged(event)
@@ -237,12 +214,6 @@ function inventoryChanged(event)
     -- player is only allowed to carry 1 of each item that can be placed as entity
     -- everything else goes into entity opened or entity beneath mouse cursor
     -- if no opened entity nor entity beneath mouse cursor, drop on ground
-    -- exceptions:
-    -- red, green and copper wires (need those for circuitry)
-    -- deconstruction planner, blueprints and blueprint book
-    -- locomotive, wagons?
-    -- modules?
-    -- upgrade builder?
     local entity = player.selected or player.opened
     local inventory = player.get_inventory(defines.inventory.god_main).get_contents()
     for name, count in pairs(player.get_inventory(defines.inventory.god_quickbar).get_contents()) do
@@ -273,10 +244,19 @@ function itemCountAllowed(name, count)
         -- locomotives and wagons must be placed manually
         -- also allowing rails due to issue with placing rail ghosts beneath deconstructed rails
         return count
+    elseif name == "stone-brick" or name == "concrete" or name == "hazard-concrete" or name == "landfill" then
+        -- can be used for paving. primarily esthetic feature, we'll allow this
+        return count
     elseif string.match(name, ".*module.*") then
         -- allow modules
         return count
-    elseif game.item_prototypes[name].place_result then
+    end
+    local place_result = game.item_prototypes[name].place_result
+    if place_result then
+        if place_result.type == "unit" then
+            -- don't allow units in inventory
+            return 0
+        end
         -- allow player to keep one of items that place entities
         return 1
     end
@@ -295,7 +275,9 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
             local entity = player.opened or player.selected
             local inserted = entity and entity.insert{name = cursor.name, count = to_remove} or 0
             if to_remove - inserted > 0 then
-                player.surface.spill_item_stack(entity and entity.position or player.position, {name = cursor.name, count = to_remove - inserted})
+                local pos = entity and entity.position or player.position
+                player.surface.spill_item_stack(pos, {name = cursor.name, count = to_remove - inserted})
+                pickupSpilledItems(player.surface, pos, player.force)
             end
             if count_remaining > 0 then
                 cursor.count = count_remaining
@@ -343,7 +325,7 @@ script.on_event(defines.events.on_tick, function(event)
     for _, player in pairs(game.players) do
         local force_config = forceConfig(player.force.name)
         -- prevent player from exploring
-        local teleport = player.position
+        local teleport = player.vehicle and player.vehicle.position or player.position
         if teleport.x < force_config.explore_boundary[1][1] then
             teleport.x = force_config.explore_boundary[1][1]
         elseif teleport.x > force_config.explore_boundary[2][1] then
@@ -354,27 +336,60 @@ script.on_event(defines.events.on_tick, function(event)
         elseif teleport.y > force_config.explore_boundary[2][2] then
             teleport.y = force_config.explore_boundary[2][2]
         end
-        player.teleport(teleport)
+        if player.vehicle then
+            player.vehicle.teleport(teleport)
+        else
+            player.teleport(teleport)
+        end
 
         -- remove player placed entities (this is a "hack" to make placing eg. power poles less aggravating, can't hold down button and move for placing ghosts)
         local player_config = playerConfig(player.name)
-        local remove_entity = player_config.remove_entities[game.tick]
-        if remove_entity then
-            if remove_entity.valid then
+        local entity = player_config.ghost_entities[game.tick]
+        if entity then
+            if entity.valid then
+                local prev_cursor
+                if player.cursor_stack and player.cursor_stack.valid_for_read then
+                    prev_cursor = {name = player.cursor_stack.name, count = player.cursor_stack.count}
+                end
+                local surface = entity.surface
+                local force = entity.force
+                local position = entity.position
+                -- create blueprint of entity
+                player.cursor_stack.set_stack{name = "blueprint", count = 1}
+                player.cursor_stack.create_blueprint{surface = surface, force = force, area = {{position.x - 0.5, position.y - 0.5}, {position.x + 0.5, position.y + 0.5}}}
                 -- if any items made it into the new entity, spill it
                 for _, slot in pairs({defines.inventory.item_main, defines.inventory.item_active}) do
-                    local inventory = remove_entity.get_inventory(slot)
+                    local inventory = entity.get_inventory(slot)
                     if inventory then
-                        local pos = remove_entity.position
                         for name, count in pairs(inventory.get_contents()) do
-                            remove_entity.surface.spill_item_stack(pos, {name = name, count = count})
+                            surface.spill_item_stack(position, {name = name, count = count})
                         end
-                        pickupSpilledItems(player.surface, pos, player.force)
+                        pickupSpilledItems(surface, position, force)
                     end
                 end
-                remove_entity.destroy()
+                -- place blueprint
+                if player.cursor_stack.get_blueprint_entities() then
+                    local backup_entity = {name = entity.name, position = entity.position, direction = entity.direction, force = entity.force}
+                    -- remove entity
+                    entity.destroy()
+                    player.cursor_stack.build_blueprint{surface = surface, force = force, position = position, force_build = true}
+                    local ghost_entity = surface.find_entity("entity-ghost", position)
+                    if not ghost_entity then
+                        if backup_entity.name ~= "land-mine" then
+                            -- placing ghost failed, we'll have to build the entity immediately. except land mines, they cause robots to get stuck
+                            surface.create_entity(backup_entity)
+                        end
+                    end
+                else
+                end
+                -- reset player cursor
+                if prev_cursor then
+                    player.cursor_stack.set_stack(prev_cursor)
+                else
+                    player.cursor_stack.clear()
+                end
             end
-            player_config.remove_entities[game.tick] = nil
+            player_config.ghost_entities[game.tick] = nil
         end
     end
 end)
