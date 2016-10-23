@@ -98,16 +98,16 @@ script.on_event(defines.events.on_player_created, function(event)
         surface.create_entity{name = "stone-wall", position = {x + 2, yy}, force = force}
     end
     -- roboport
-    local roboport = surface.create_entity{name = "roboport", position = {x, y - 4}, force = force}
-    roboport.minable = false
-    local roboport_inventory = roboport.get_inventory(defines.inventory.roboport_robot)
+    force_config.roboport = surface.create_entity{name = "roboport", position = {x, y - 4}, force = force}
+    force_config.roboport.minable = false
+    local roboport_inventory = force_config.roboport.get_inventory(defines.inventory.roboport_robot)
     roboport_inventory.insert{name = "construction-robot", count = 100}
     roboport_inventory.insert{name = "logistic-robot", count = 50}
-    roboport_inventory = roboport.get_inventory(defines.inventory.roboport_material)
+    roboport_inventory = force_config.roboport.get_inventory(defines.inventory.roboport_material)
     roboport_inventory.insert{name = "repair-pack", count = 10}
     -- radar
-    local radar = surface.create_entity{name = "radar", position = {x - 1, y - 1}, force = force}
-    radar.minable = false
+    force_config.radar = surface.create_entity{name = "radar", position = {x - 1, y - 1}, force = force}
+    force_config.radar.minable = false
     -- electric pole
     local electric_pole = surface.create_entity{name = "medium-electric-pole", position = {x + 1, y - 2}, force = force}
     electric_pole.minable = false
@@ -293,9 +293,59 @@ end)
 
 script.on_event(defines.events.on_entity_died, function(event)
     local entity = event.entity
-    if entity.force.name == "enemy" then
+    if entity.force.name == event.force.name then
+        -- deconstructing entities is considered as the entity dying, we don't want to put it on fire then
+        return
+    elseif entity.force.name == "enemy" then
         -- spawn alien artifact
         spillItems(event.force, "alien-artifact", 1)
+    elseif entity.type ~= "tree" then
+        -- when entities dies there's a chance a fire starts at position (depending on entity's fire resistance)
+        -- although, let's not set trees on fire when they die. that's kinda mean
+        local prototype = entity.prototype
+        local resistances = prototype.resistances
+        local fire_resistance = resistances and resistances["fire"] or {decrease = 0, percent = 0.271828}
+        if math.random() > fire_resistance.percent then
+            local pos = entity.position
+            -- start fire at position
+            entity.surface.create_entity{name = "fire-flame", position = pos}
+            -- you know what, let's make fire even more deadly
+            local top_left = entity.prototype.collision_box.left_top
+            local bottom_right = entity.prototype.collision_box.right_bottom
+            local x1 = math.floor(top_left.x)
+            local x2 = math.ceil(bottom_right.x)
+            local xstep = (x2 - x1) / 2
+            local y1 = math.floor(top_left.y)
+            local y2 = math.ceil(bottom_right.y)
+            local ystep = (y2 - y1) / 2
+            for x = math.floor(top_left.x), math.ceil(bottom_right.x), xstep do
+                for y = math.floor(top_left.y), math.ceil(bottom_right.y), ystep do
+                    if (x ~= 0 or y ~= 0) and math.random() > (1.0 - (1.0 - fire_resistance.percent) / 2.0) then
+                        entity.surface.create_entity{name = "fire-flame", position = {pos.x + x, pos.y + y}}
+                    end
+                end
+            end
+        end
+        -- check if roboport, radar or spill chest was destroyed
+        -- TODO: maybe there's an easier way?
+        local force_config = forceConfig(entity.force.name)
+        local lose = false
+        if entity.type == "roboport" then
+            if not force_config.roboport.valid or (entity.position.x == force_config.roboport.position.x and entity.position.y == force_config.roboport.position.y) then
+                lose = true
+            end
+        elseif entity.type == "radar" then
+            if not force_config.radar.valid or (entity.position.x == force_config.radar.position.x and entity.position.y == force_config.radar.position.y) then
+                lose = true
+            end
+        elseif entity.type == "logistic-container" then
+            if not force_config.spill_chest.valid or (entity.position.x == force_config.spill_chest.position.x and entity.position.y == force_config.spill_chest.position.y) then
+                lose = true
+            end
+        end
+        if lose then
+            game.set_game_state{game_finished = true, player_won = false, can_continue = false}
+        end
     end
 end)
 
