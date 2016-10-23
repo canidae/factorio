@@ -1,3 +1,5 @@
+ENTITY_INVENTORY_SLOTS = {defines.inventory.item_main, defines.inventory.item_active}
+
 function playerConfig(playername)
     return global.brave_new_world.players[playername]
 end
@@ -34,6 +36,8 @@ script.on_event(defines.events.on_player_created, function(event)
     player.insert{name = "blueprint", count = 1}
     player.insert{name = "deconstruction-planner", count = 1}
 
+    local force_config = forceConfig(force.name)
+
     -- player/force start location
     local x = 0
     local y = 0
@@ -68,7 +72,7 @@ script.on_event(defines.events.on_player_created, function(event)
     surface.set_tiles(tiles)
 
     -- setup exploration boundary
-    forceConfig(force.name).explore_boundary = {{x - 96, y - 96}, {x + 96, y + 96}}
+    force_config.explore_boundary = {{x - 96, y - 96}, {x + 96, y + 96}}
     force.chart(surface, {{x - 192, y - 192}, {x + 192, y + 192}})
 
     -- place dirt beneath structures
@@ -107,8 +111,11 @@ script.on_event(defines.events.on_player_created, function(event)
     -- electric pole
     local electric_pole = surface.create_entity{name = "medium-electric-pole", position = {x + 1, y - 2}, force = force}
     electric_pole.minable = false
-    -- chests
-    local chest = surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y - 1}, force = force}
+    -- "spill" chest, items that would be spilled will be moved to this active provider chest
+    force_config.spill_chest = surface.create_entity{name = "logistic-chest-active-provider", position = {x + 1, y - 1}, force = force}
+    force_config.spill_chest.minable = false
+    -- "storage" chest, contains the items the player starts with
+    local chest = surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y}, force = force}
     chest.minable = false
     local chest_inventory = chest.get_inventory(defines.inventory.chest)
     chest_inventory.insert{name = "transport-belt", count = 500}
@@ -129,8 +136,6 @@ script.on_event(defines.events.on_player_created, function(event)
     chest_inventory.insert{name = "logistic-chest-passive-provider", count = 8}
     chest_inventory.insert{name = "logistic-chest-requester", count = 8}
     chest_inventory.insert{name = "lab", count = 2}
-    chest = surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y}, force = force}
-    chest.minable = false
     -- solar panels and accumulators (left side)
     surface.create_entity{name = "solar-panel", position = {x - 11, y - 6}, force = force}
     surface.create_entity{name = "solar-panel", position = {x - 11, y - 3}, force = force}
@@ -223,10 +228,9 @@ function inventoryChanged(event)
         local to_remove = count - itemCountAllowed(name, count)
         if to_remove > 0 then
             local inserted = entity and entity.insert{name = name, count = to_remove} or 0
-            if to_remove - inserted > 0 then
-                local pos = entity and entity.position or player.position
-                player.surface.spill_item_stack(pos, {name = name, count = to_remove - inserted})
-                pickupSpilledItems(player.surface, pos, player.force)
+            local remaining = to_remove - inserted
+            if remaining > 0 then
+                spillItems(player.force, name, remaining)
             end
             player.remove_item{name = name, count = to_remove}
         end
@@ -274,10 +278,9 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
         if to_remove > 0 then
             local entity = player.opened or player.selected
             local inserted = entity and entity.insert{name = cursor.name, count = to_remove} or 0
-            if to_remove - inserted > 0 then
-                local pos = entity and entity.position or player.position
-                player.surface.spill_item_stack(pos, {name = cursor.name, count = to_remove - inserted})
-                pickupSpilledItems(player.surface, pos, player.force)
+            local remaining = to_remove - inserted
+            if remaining > 0 then
+                spillItems(player.force, cursor.name, to_remove)
             end
             if count_remaining > 0 then
                 cursor.count = count_remaining
@@ -292,7 +295,7 @@ script.on_event(defines.events.on_entity_died, function(event)
     local entity = event.entity
     if entity.force.name == "enemy" then
         -- spawn alien artifact
-        entity.surface.spill_item_stack(entity.position, {name = "alien-artifact", count = 1})
+        spillItems(event.force, "alien-artifact", 1)
     end
 end)
 
@@ -314,10 +317,18 @@ script.on_event(defines.events.on_sector_scanned, function(event)
     end
 end)
 
-function pickupSpilledItems(surface, pos, force)
-    local spilled = surface.find_entities_filtered{area = {{pos.x - 10, pos.y - 10}, {pos.x + 10, pos.y + 10}}, force = "neutral", type = "item-entity"}
-    for _, item in pairs(spilled) do
-        item.order_deconstruction(force)
+function spillItems(force, name, count)
+    local force_config = forceConfig(force.name)
+    local chest = force_config.spill_chest
+    local inserted = chest.insert{name = name, count = count}
+    local remaining = count - inserted
+    if remaining > 0 then
+        -- chest is full, explode items around chest
+        chest.surface.spill_item_stack(chest.position, {name = name, count = remaining})
+        local spilled = surface.find_entities_filtered{area = {{pos.x - 16, pos.y - 16}, {pos.x + 16, pos.y + 16}}, force = "neutral", type = "item-entity"}
+        for _, item in pairs(spilled) do
+            item.order_deconstruction(force)
+        end
     end
 end
 
@@ -345,31 +356,31 @@ script.on_event(defines.events.on_tick, function(event)
         -- remove player placed entities (this is a "hack" to make placing eg. power poles less aggravating, can't hold down button and move for placing ghosts)
         local player_config = playerConfig(player.name)
         local entity = player_config.ghost_entities[game.tick]
-        if entity then
-            if entity.valid then
+        if entity and entity.valid then
+            local surface = entity.surface
+            local force = entity.force
+            local position = entity.position
+            local ghost_placed = false
+            if not entity.has_items_inside() then
+                -- no items in entity, we'll remove the entity and place a ghost there instead
                 local prev_cursor
                 if player.cursor_stack and player.cursor_stack.valid_for_read then
                     prev_cursor = {name = player.cursor_stack.name, count = player.cursor_stack.count}
                 end
-                local surface = entity.surface
-                local force = entity.force
-                local position = entity.position
+                -- backup entity data and contents
+                local backup_entity = {name = entity.name, position = entity.position, direction = entity.direction, force = entity.force}
+                local backup_inventory = {}
+                for _, slot in pairs(ENTITY_INVENTORY_SLOTS) do
+                    local inventory = entity.get_inventory(slot)
+                    if inventory then
+                        backup_inventory[slot] = inventory.get_contents()
+                    end
+                end
                 -- create blueprint of entity
                 player.cursor_stack.set_stack{name = "blueprint", count = 1}
                 player.cursor_stack.create_blueprint{surface = surface, force = force, area = {{position.x - 0.5, position.y - 0.5}, {position.x + 0.5, position.y + 0.5}}}
-                -- if any items made it into the new entity, spill it
-                for _, slot in pairs({defines.inventory.item_main, defines.inventory.item_active}) do
-                    local inventory = entity.get_inventory(slot)
-                    if inventory then
-                        for name, count in pairs(inventory.get_contents()) do
-                            surface.spill_item_stack(position, {name = name, count = count})
-                        end
-                        pickupSpilledItems(surface, position, force)
-                    end
-                end
                 -- place blueprint
                 if player.cursor_stack.get_blueprint_entities() then
-                    local backup_entity = {name = entity.name, position = entity.position, direction = entity.direction, force = entity.force}
                     -- remove entity
                     entity.destroy()
                     player.cursor_stack.build_blueprint{surface = surface, force = force, position = position, force_build = true}
@@ -377,10 +388,20 @@ script.on_event(defines.events.on_tick, function(event)
                     if not ghost_entity then
                         if backup_entity.name ~= "land-mine" then
                             -- placing ghost failed, we'll have to build the entity immediately. except land mines, they cause robots to get stuck
-                            surface.create_entity(backup_entity)
+                            entity = surface.create_entity(backup_entity)
+                            for slot, items in pairs(backup_inventory) do
+                                local inventory = entity.get_inventory(slot)
+                                for name, count in pairs(items) do
+                                    local inserted = inventory and inventory.insert{name = name, count = count} or 0
+                                    if inserted < count then
+                                        spillItems(force, name, count - inserted)
+                                    end
+                                end
+                            end
                         end
+                    else
+                        ghost_placed = true
                     end
-                else
                 end
                 -- reset player cursor
                 if prev_cursor then
@@ -389,7 +410,46 @@ script.on_event(defines.events.on_tick, function(event)
                     player.cursor_stack.clear()
                 end
             end
-            player_config.ghost_entities[game.tick] = nil
+            if not ghost_placed and entity and entity.valid then
+                -- didn't place a ghost/remove built entity, enable entity for player to use
+                entity.active = true
+                entity.minable = true
+                entity.operable = true
+                -- and we must find an item producing the built entity in a chest/inventory and remove it (or player gets stuff for free, which is bad)
+                local network = entity.logistic_network
+                local items = entity.prototype.items_to_place_this
+                local item_removed = false
+                if network then
+                    for name, _ in pairs(items) do
+                        if network.remove_item{name = name, count = 1} >= 1 then
+                            item_removed = true
+                            break
+                        end
+                    end
+                end
+                if not item_removed then
+                    -- try to remove from player inventory
+                    for name, _ in pairs(items) do
+                        if player.remove_item{name = name, count = 1} >= 1 then
+                            item_removed = true
+                            break
+                        end
+                    end
+                end
+                if not item_removed then
+                    -- either player is being a smart-ass or something weird is going on. move items to spill_chest
+                    for _, slot in pairs(ENTITY_INVENTORY_SLOTS) do
+                        local inventory = entity.get_inventory(slot)
+                        if inventory then
+                            for name, count in pairs(inventory.get_contents()) do
+                                spillItems(force, name, count)
+                            end
+                        end
+                    end
+                    entity.destroy()
+                end
+            end
         end
+        player_config.ghost_entities[game.tick] = nil
     end
 end)
