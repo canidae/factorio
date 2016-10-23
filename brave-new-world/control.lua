@@ -304,7 +304,7 @@ script.on_event(defines.events.on_entity_died, function(event)
         -- although, let's not set trees on fire when they die. that's kinda mean
         local prototype = entity.prototype
         local resistances = prototype.resistances
-        local fire_resistance = resistances and resistances["fire"] or {decrease = 0, percent = 0.271828}
+        local fire_resistance = resistances and resistances["fire"] or {percent = 0.271828}
         if math.random() > fire_resistance.percent then
             local pos = entity.position
             -- start fire at position
