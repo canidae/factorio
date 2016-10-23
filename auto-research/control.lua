@@ -23,6 +23,9 @@ function getConfig(force)
 
         -- Allow switching research
         setAllowSwitchingEnabled(force, true)
+
+        -- Print researched technology
+        setAnnounceCompletedResearch(force, true)
     end
     return global.auto_research_config[force.name]
 end
@@ -66,6 +69,13 @@ function setAllowSwitchingEnabled(force, enabled)
 
     -- start new research
     startNextResearch(force)
+end
+
+function setAnnounceCompletedResearch(force, enabled)
+    if not force then
+        return
+    end
+    getConfig(force).announce_completed = enabled
 end
 
 function getPretechIfNeeded(tech)
@@ -200,6 +210,10 @@ function onResearchFinished(event)
             table.remove(config.deprioritized_techs, i)
         end
     end
+    -- announce completed research
+    if config.announce_completed then
+        force.print{"auto_research.announce_completed", event.research.localised_name}
+    end
 
     startNextResearch(event.research.force)
 end
@@ -230,6 +244,7 @@ gui = {
             frameflow.add{type = "checkbox", name = "auto_research_fewest_ingredients", caption = {"auto_research_gui.fewest_ingredients"}, tooltip = {"auto_research_gui.fewest_ingredients_tooltip"}, state = config.fewest_ingredients or false}
             frameflow.add{type = "checkbox", name = "auto_research_extended_enabled", caption = {"auto_research_gui.extended_enabled"}, tooltip = {"auto_research_gui.extended_enabled_tooltip"}, state = config.extended_enabled or false}
             frameflow.add{type = "checkbox", name = "auto_research_allow_switching", caption = {"auto_research_gui.allow_switching"}, tooltip = {"auto_research_gui.allow_switching_tooltip"}, state = config.allow_switching or false}
+            frameflow.add{type = "checkbox", name = "auto_research_announce_completed", caption = {"auto_research_gui.announce_completed"}, tooltip = {"auto_research_gui.announce_completed_tooltip"}, state = config.announce_completed or false}
 
             -- prioritized techs
             frameflow.add{
@@ -310,6 +325,8 @@ gui = {
             setExtendedEnabled(force, event.element.state)
         elseif name == "auto_research_allow_switching" then
             setAllowSwitchingEnabled(force, event.element.state)
+        elseif name == "auto_research_announce_completed" then
+            setAnnounceCompletedResearch(force, event.element.state)
         else
             local prefix, techname = string.match(name, "^auto_research_([^-]*)-(.*)$")
             if techname and force.technologies[techname] then
@@ -460,5 +477,6 @@ remote.add_interface("auto_research", {
     enabled = setAutoResearchEnabled,
     extended = setExtendedEnabled,
     fewest_ingredients = setFewestIngredientsEnabled,
-    allow_switching = setAllowSwitchingEnabled
+    allow_switching = setAllowSwitchingEnabled,
+    announce_completed = setAnnounceCompletedResearch
 })
