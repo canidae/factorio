@@ -297,8 +297,31 @@ script.on_event(defines.events.on_entity_died, function(event)
         -- deconstructing entities is considered as the entity dying, we don't want to put it on fire then
         return
     elseif entity.force.name == "enemy" then
-        -- spawn alien artifact
-        spillItems(event.force, "alien-artifact", 1)
+        local spawn
+        local size, kind = string.match(entity.name, "^([^-]+)-(.+)$")
+        if math.random() > 0.5 then
+            -- spawn same kind of enemy
+            spawn = entity.name
+        elseif size and kind then
+            -- spawn smaller size of enemy
+            if size == "behemoth" then
+                spawn = "big"
+            elseif size == "big" then
+                spawn = "medium"
+            elseif size == "medium" then
+                spawn = "small"
+            end
+            if spawn then
+                spawn = spawn .. "-" .. kind
+            end
+        end
+        if spawn and game.entity_prototypes[spawn] then
+            -- spawn new alien and give player an alien artifact unless enemy was of small size
+            entity.surface.create_entity{name = spawn, force = entity.force, position = {entity.position.x, entity.position.y}}
+            if size ~= "small" then
+                spillItems(event.force, "alien-artifact", 1)
+            end
+        end
     elseif entity.type ~= "tree" then
         -- when entities dies there's a chance a fire starts at position (depending on entity's fire resistance)
         -- although, let's not set trees on fire when they die. that's kinda mean
@@ -318,10 +341,12 @@ script.on_event(defines.events.on_entity_died, function(event)
             local y1 = math.floor(top_left.y)
             local y2 = math.ceil(bottom_right.y)
             local ystep = (y2 - y1) / 2
-            for x = math.floor(top_left.x), math.ceil(bottom_right.x), xstep do
-                for y = math.floor(top_left.y), math.ceil(bottom_right.y), ystep do
-                    if (x ~= 0 or y ~= 0) and math.random() > (1.0 - (1.0 - fire_resistance.percent) / 2.0) then
-                        entity.surface.create_entity{name = "fire-flame", position = {pos.x + x, pos.y + y}}
+            if xstep > 0 and ystep > 0 then
+                for x = math.floor(top_left.x), math.ceil(bottom_right.x), xstep do
+                    for y = math.floor(top_left.y), math.ceil(bottom_right.y), ystep do
+                        if (x ~= 0 or y ~= 0) and math.random() > (1.0 - (1.0 - fire_resistance.percent) / 2.0) then
+                            entity.surface.create_entity{name = "fire-flame", position = {pos.x + x, pos.y + y}}
+                        end
                     end
                 end
             end
@@ -411,8 +436,9 @@ script.on_event(defines.events.on_tick, function(event)
             local force = entity.force
             local position = entity.position
             local ghost_placed = false
-            if not entity.has_items_inside() then
-                -- no items in entity, we'll remove the entity and place a ghost there instead
+            if entity.get_item_count() < 100 then
+                -- if there are less than 100 items in entity, remove it and place a ghost instead
+                -- this is mainly used to make swapping chests less painful
                 local prev_cursor
                 if player.cursor_stack and player.cursor_stack.valid_for_read then
                     prev_cursor = {name = player.cursor_stack.name, count = player.cursor_stack.count}
