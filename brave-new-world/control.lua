@@ -1,9 +1,5 @@
 ENTITY_INVENTORY_SLOTS = {defines.inventory.item_main, defines.inventory.item_active}
 
-function playerConfig(playername)
-    return global.brave_new_world.players[playername]
-end
-
 function forceConfig(forcename)
     return global.brave_new_world.forces[forcename]
 end
@@ -17,14 +13,11 @@ script.on_event(defines.events.on_player_created, function(event)
         }
     end
     local player = game.players[event.player_index]
-    if not global.brave_new_world.players[player.name] then
-        global.brave_new_world.players[player.name] = {
-            ghost_entities = {}
-        }
-    end
     local force = player.force
     if not global.brave_new_world.forces[force.name] then
-        global.brave_new_world.forces[force.name] = {}
+        global.brave_new_world.forces[force.name] = {
+            event = {}
+        }
     end
     local character = player.character
     player.character = nil
@@ -36,7 +29,7 @@ script.on_event(defines.events.on_player_created, function(event)
     player.insert{name = "blueprint", count = 1}
     player.insert{name = "deconstruction-planner", count = 1}
 
-    local force_config = forceConfig(force.name)
+    local config = forceConfig(force.name)
 
     -- player/force start location
     local x = 0
@@ -72,7 +65,7 @@ script.on_event(defines.events.on_player_created, function(event)
     surface.set_tiles(tiles)
 
     -- setup exploration boundary
-    force_config.explore_boundary = {{x - 96, y - 96}, {x + 96, y + 96}}
+    config.explore_boundary = {{x - 96, y - 96}, {x + 96, y + 96}}
     force.chart(surface, {{x - 192, y - 192}, {x + 192, y + 192}})
 
     -- place dirt beneath structures
@@ -98,22 +91,22 @@ script.on_event(defines.events.on_player_created, function(event)
         surface.create_entity{name = "stone-wall", position = {x + 2, yy}, force = force}
     end
     -- roboport
-    force_config.roboport = surface.create_entity{name = "roboport", position = {x, y - 4}, force = force}
-    force_config.roboport.minable = false
-    local roboport_inventory = force_config.roboport.get_inventory(defines.inventory.roboport_robot)
+    config.roboport = surface.create_entity{name = "roboport", position = {x, y - 4}, force = force}
+    config.roboport.minable = false
+    local roboport_inventory = config.roboport.get_inventory(defines.inventory.roboport_robot)
     roboport_inventory.insert{name = "construction-robot", count = 100}
     roboport_inventory.insert{name = "logistic-robot", count = 50}
-    roboport_inventory = force_config.roboport.get_inventory(defines.inventory.roboport_material)
+    roboport_inventory = config.roboport.get_inventory(defines.inventory.roboport_material)
     roboport_inventory.insert{name = "repair-pack", count = 10}
     -- radar
-    force_config.radar = surface.create_entity{name = "radar", position = {x - 1, y - 1}, force = force}
-    force_config.radar.minable = false
+    config.radar = surface.create_entity{name = "radar", position = {x - 1, y - 1}, force = force}
+    config.radar.minable = false
     -- electric pole
     local electric_pole = surface.create_entity{name = "medium-electric-pole", position = {x + 1, y - 2}, force = force}
     electric_pole.minable = false
     -- "spill" chest, items that would be spilled will be moved to this active provider chest
-    force_config.spill_chest = surface.create_entity{name = "logistic-chest-active-provider", position = {x + 1, y - 1}, force = force}
-    force_config.spill_chest.minable = false
+    config.spill_chest = surface.create_entity{name = "logistic-chest-active-provider", position = {x + 1, y - 1}, force = force}
+    config.spill_chest.minable = false
     -- "storage" chest, contains the items the player starts with
     local chest = surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y}, force = force}
     chest.minable = false
@@ -204,13 +197,34 @@ script.on_event(defines.events.on_built_entity, function(event)
         end
 
         -- add entity to list to entities to create ghosts of
-        local config = playerConfig(player.name)
-        local remove_tick = game.tick + 60
-        while config.ghost_entities[remove_tick] do
-            -- somehow it's actually possible to get two entities on same tick, this loop will find an available slot if that happens
-            remove_tick = remove_tick + 1
+        local config = forceConfig(player.force.name)
+        local ghost_tick = game.tick + 60
+        while config.event[ghost_tick] do
+            -- already an event on this tick. max one event per tick
+            ghost_tick = ghost_tick + 1
         end
-        config.ghost_entities[remove_tick] = entity
+        config.event[ghost_tick] = {
+            create_ghost = entity
+        }
+    end
+end)
+
+script.on_event(defines.events.on_robot_built_entity, function(event)
+    local entity = event.created_entity
+    if (entity.type == "ammo-turret" or entity.type == "electric-turret") and math.random() > 0.998 then
+        local force = entity.force
+        -- make this turret malfunction sometime in the future
+        -- this should not happen often!
+        -- ~0.2% of the turrets will malfunction, and they may be removed before they malfunction
+        local config = forceConfig(force.name)
+        local malfunction_tick = game.tick + math.random(36000, 864000) -- 10 to 240 minutes until malfunction
+        while config.event[malfunction_tick] do
+            -- already an event on this tick. max one event per tick
+            malfunction_tick = malfunction_tick + 1
+        end
+        config.event[malfunction_tick] = {
+            malfunction = entity
+        }
     end
 end)
 
@@ -299,7 +313,7 @@ script.on_event(defines.events.on_entity_died, function(event)
     elseif entity.force.name == "enemy" then
         local spawn
         local size, kind = string.match(entity.name, "^([^-]+)-(.+)$")
-        if math.random() > 0.5 then
+        if math.random() > 0.314159 then
             -- spawn same kind of enemy
             spawn = entity.name
         elseif size and kind then
@@ -342,8 +356,8 @@ script.on_event(defines.events.on_entity_died, function(event)
             local y2 = math.ceil(bottom_right.y)
             local ystep = (y2 - y1) / 2
             if xstep > 0 and ystep > 0 then
-                for x = math.floor(top_left.x), math.ceil(bottom_right.x), xstep do
-                    for y = math.floor(top_left.y), math.ceil(bottom_right.y), ystep do
+                for x = math.floor(top_left.x) - xstep / 2, math.ceil(bottom_right.x) + xstep / 2, xstep do
+                    for y = math.floor(top_left.y) - ystep / 2, math.ceil(bottom_right.y) + ystep / 2, ystep do
                         if (x ~= 0 or y ~= 0) and math.random() > (1.0 - (1.0 - fire_resistance.percent) / 2.0) then
                             entity.surface.create_entity{name = "fire-flame", position = {pos.x + x, pos.y + y}}
                         end
@@ -353,18 +367,18 @@ script.on_event(defines.events.on_entity_died, function(event)
         end
         -- check if roboport, radar or spill chest was destroyed
         -- TODO: maybe there's an easier way?
-        local force_config = forceConfig(entity.force.name)
+        local config = forceConfig(entity.force.name)
         local lose = false
         if entity.type == "roboport" then
-            if not force_config.roboport.valid or (entity.position.x == force_config.roboport.position.x and entity.position.y == force_config.roboport.position.y) then
+            if not config.roboport.valid or (entity.position.x == config.roboport.position.x and entity.position.y == config.roboport.position.y) then
                 lose = true
             end
         elseif entity.type == "radar" then
-            if not force_config.radar.valid or (entity.position.x == force_config.radar.position.x and entity.position.y == force_config.radar.position.y) then
+            if not config.radar.valid or (entity.position.x == config.radar.position.x and entity.position.y == config.radar.position.y) then
                 lose = true
             end
         elseif entity.type == "logistic-container" then
-            if not force_config.spill_chest.valid or (entity.position.x == force_config.spill_chest.position.x and entity.position.y == force_config.spill_chest.position.y) then
+            if not config.spill_chest.valid or (entity.position.x == config.spill_chest.position.x and entity.position.y == config.spill_chest.position.y) then
                 lose = true
             end
         end
@@ -377,24 +391,24 @@ end)
 script.on_event(defines.events.on_sector_scanned, function(event)
     local position = event.chunk_position
     local radar = event.radar
-    local force_config = forceConfig(radar.force.name)
+    local config = forceConfig(radar.force.name)
     local x = ((position.x <= 0 and (position.x + 5)) or (position.x > 0 and (position.x - 5))) * 32
     local y = ((position.y <= 0 and (position.y + 5)) or (position.y > 0 and (position.y - 5))) * 32
-    if x < force_config.explore_boundary[1][1] then
-        force_config.explore_boundary[1][1] = x
-    elseif x > force_config.explore_boundary[2][1] then
-        force_config.explore_boundary[2][1] = x
+    if x < config.explore_boundary[1][1] then
+        config.explore_boundary[1][1] = x
+    elseif x > config.explore_boundary[2][1] then
+        config.explore_boundary[2][1] = x
     end
-    if y < force_config.explore_boundary[1][2] then
-        force_config.explore_boundary[1][2] = y
-    elseif y > force_config.explore_boundary[2][2] then
-        force_config.explore_boundary[2][2] = y
+    if y < config.explore_boundary[1][2] then
+        config.explore_boundary[1][2] = y
+    elseif y > config.explore_boundary[2][2] then
+        config.explore_boundary[2][2] = y
     end
 end)
 
 function spillItems(force, name, count)
-    local force_config = forceConfig(force.name)
-    local chest = force_config.spill_chest
+    local config = forceConfig(force.name)
+    local chest = config.spill_chest
     local inserted = chest.insert{name = name, count = count}
     local remaining = count - inserted
     if remaining > 0 then
@@ -409,18 +423,18 @@ end
 
 script.on_event(defines.events.on_tick, function(event)
     for _, player in pairs(game.players) do
-        local force_config = forceConfig(player.force.name)
+        local config = forceConfig(player.force.name)
         -- prevent player from exploring
         local teleport = player.vehicle and player.vehicle.position or player.position
-        if teleport.x < force_config.explore_boundary[1][1] then
-            teleport.x = force_config.explore_boundary[1][1]
-        elseif teleport.x > force_config.explore_boundary[2][1] then
-            teleport.x = force_config.explore_boundary[2][1]
+        if teleport.x < config.explore_boundary[1][1] then
+            teleport.x = config.explore_boundary[1][1]
+        elseif teleport.x > config.explore_boundary[2][1] then
+            teleport.x = config.explore_boundary[2][1]
         end
-        if teleport.y < force_config.explore_boundary[1][2] then
-            teleport.y = force_config.explore_boundary[1][2]
-        elseif teleport.y > force_config.explore_boundary[2][2] then
-            teleport.y = force_config.explore_boundary[2][2]
+        if teleport.y < config.explore_boundary[1][2] then
+            teleport.y = config.explore_boundary[1][2]
+        elseif teleport.y > config.explore_boundary[2][2] then
+            teleport.y = config.explore_boundary[2][2]
         end
         if player.vehicle then
             player.vehicle.teleport(teleport)
@@ -429,103 +443,111 @@ script.on_event(defines.events.on_tick, function(event)
         end
 
         -- remove player placed entities (this is a "hack" to make placing eg. power poles less aggravating, can't hold down button and move for placing ghosts)
-        local player_config = playerConfig(player.name)
-        local entity = player_config.ghost_entities[game.tick]
-        if entity and entity.valid then
-            local surface = entity.surface
-            local force = entity.force
-            local position = entity.position
-            local ghost_placed = false
-            if entity.get_item_count() < 100 then
-                -- if there are less than 100 items in entity, remove it and place a ghost instead
-                -- this is mainly used to make swapping chests less painful
-                local prev_cursor
-                if player.cursor_stack and player.cursor_stack.valid_for_read then
-                    prev_cursor = {name = player.cursor_stack.name, count = player.cursor_stack.count}
-                end
-                -- backup entity data and contents
-                local backup_entity = {name = entity.name, position = entity.position, direction = entity.direction, force = entity.force}
-                local backup_inventory = {}
-                for _, slot in pairs(ENTITY_INVENTORY_SLOTS) do
-                    local inventory = entity.get_inventory(slot)
-                    if inventory then
-                        backup_inventory[slot] = inventory.get_contents()
+        local force_event = config.event[game.tick]
+        if force_event then
+            local entity = force_event.create_ghost
+            if entity and entity.valid then
+                local surface = entity.surface
+                local force = entity.force
+                local position = entity.position
+                local ghost_placed = false
+                if entity.get_item_count() < 100 then
+                    -- if there are less than 100 items in entity, remove it and place a ghost instead
+                    -- this is mainly used to make swapping chests less painful
+                    local prev_cursor
+                    if player.cursor_stack and player.cursor_stack.valid_for_read then
+                        prev_cursor = {name = player.cursor_stack.name, count = player.cursor_stack.count}
                     end
-                end
-                -- create blueprint of entity
-                player.cursor_stack.set_stack{name = "blueprint", count = 1}
-                player.cursor_stack.create_blueprint{surface = surface, force = force, area = {{position.x - 0.5, position.y - 0.5}, {position.x + 0.5, position.y + 0.5}}}
-                -- place blueprint
-                if player.cursor_stack.get_blueprint_entities() then
-                    -- remove entity
-                    entity.destroy()
-                    player.cursor_stack.build_blueprint{surface = surface, force = force, position = position, force_build = true}
-                    local ghost_entity = surface.find_entity("entity-ghost", position)
-                    if not ghost_entity then
-                        if backup_entity.name ~= "land-mine" then
-                            -- placing ghost failed, we'll have to build the entity immediately. except land mines, they cause robots to get stuck
-                            entity = surface.create_entity(backup_entity)
-                            for slot, items in pairs(backup_inventory) do
-                                local inventory = entity.get_inventory(slot)
-                                for name, count in pairs(items) do
-                                    local inserted = inventory and inventory.insert{name = name, count = count} or 0
-                                    if inserted < count then
-                                        spillItems(force, name, count - inserted)
-                                    end
-                                end
-                            end
-                        end
-                    else
-                        ghost_placed = true
-                    end
-                end
-                -- reset player cursor
-                if prev_cursor then
-                    player.cursor_stack.set_stack(prev_cursor)
-                else
-                    player.cursor_stack.clear()
-                end
-            end
-            if not ghost_placed and entity and entity.valid then
-                -- didn't place a ghost/remove built entity, enable entity for player to use
-                entity.active = true
-                entity.minable = true
-                entity.operable = true
-                -- and we must find an item producing the built entity in a chest/inventory and remove it (or player gets stuff for free, which is bad)
-                local network = entity.logistic_network
-                local items = entity.prototype.items_to_place_this
-                local item_removed = false
-                if network then
-                    for name, _ in pairs(items) do
-                        if network.remove_item{name = name, count = 1} >= 1 then
-                            item_removed = true
-                            break
-                        end
-                    end
-                end
-                if not item_removed then
-                    -- try to remove from player inventory
-                    for name, _ in pairs(items) do
-                        if player.remove_item{name = name, count = 1} >= 1 then
-                            item_removed = true
-                            break
-                        end
-                    end
-                end
-                if not item_removed then
-                    -- either player is being a smart-ass or something weird is going on. move items to spill_chest
+                    -- backup entity data and contents
+                    local backup_entity = {name = entity.name, position = entity.position, direction = entity.direction, force = entity.force}
+                    local backup_inventory = {}
                     for _, slot in pairs(ENTITY_INVENTORY_SLOTS) do
                         local inventory = entity.get_inventory(slot)
                         if inventory then
-                            for name, count in pairs(inventory.get_contents()) do
-                                spillItems(force, name, count)
+                            backup_inventory[slot] = inventory.get_contents()
+                        end
+                    end
+                    -- create blueprint of entity
+                    player.cursor_stack.set_stack{name = "blueprint", count = 1}
+                    player.cursor_stack.create_blueprint{surface = surface, force = force, area = {{position.x - 0.5, position.y - 0.5}, {position.x + 0.5, position.y + 0.5}}}
+                    -- place blueprint
+                    if player.cursor_stack.get_blueprint_entities() then
+                        -- remove entity
+                        entity.destroy()
+                        player.cursor_stack.build_blueprint{surface = surface, force = force, position = position, force_build = true}
+                        local ghost_entity = surface.find_entity("entity-ghost", position)
+                        if not ghost_entity then
+                            if backup_entity.name ~= "land-mine" then
+                                -- placing ghost failed, we'll have to build the entity immediately. except land mines, they cause robots to get stuck
+                                entity = surface.create_entity(backup_entity)
+                                for slot, items in pairs(backup_inventory) do
+                                    local inventory = entity.get_inventory(slot)
+                                    for name, count in pairs(items) do
+                                        local inserted = inventory and inventory.insert{name = name, count = count} or 0
+                                        if inserted < count then
+                                            spillItems(force, name, count - inserted)
+                                        end
+                                    end
+                                end
+                            end
+                        else
+                            ghost_placed = true
+                        end
+                    end
+                    -- reset player cursor
+                    if prev_cursor then
+                        player.cursor_stack.set_stack(prev_cursor)
+                    else
+                        player.cursor_stack.clear()
+                    end
+                end
+                if not ghost_placed and entity and entity.valid then
+                    -- didn't place a ghost/remove built entity, enable entity for player to use
+                    entity.active = true
+                    entity.minable = true
+                    entity.operable = true
+                    -- and we must find an item producing the built entity in a chest/inventory and remove it (or player gets stuff for free, which is bad)
+                    local network = entity.logistic_network
+                    local items = entity.prototype.items_to_place_this
+                    local item_removed = false
+                    if network then
+                        for name, _ in pairs(items) do
+                            if network.remove_item{name = name, count = 1} >= 1 then
+                                item_removed = true
+                                break
                             end
                         end
                     end
-                    entity.destroy()
+                    if not item_removed then
+                        -- try to remove from player inventory
+                        for name, _ in pairs(items) do
+                            if player.remove_item{name = name, count = 1} >= 1 then
+                                item_removed = true
+                                break
+                            end
+                        end
+                    end
+                    if not item_removed then
+                        -- either player is being a smart-ass or something weird is going on. move items to spill_chest
+                        for _, slot in pairs(ENTITY_INVENTORY_SLOTS) do
+                            local inventory = entity.get_inventory(slot)
+                            if inventory then
+                                for name, count in pairs(inventory.get_contents()) do
+                                    spillItems(force, name, count)
+                                end
+                            end
+                        end
+                        entity.destroy()
+                    end
                 end
             end
+
+            entity = force_event.malfunction
+            if entity and entity.valid then
+                player.force.print({"brave-new-world.turret_entity", entity.localised_name})
+                entity.force = "enemy"
+            end
         end
-        player_config.ghost_entities[game.tick] = nil
+        config.event[game.tick] = nil
     end
 end)
