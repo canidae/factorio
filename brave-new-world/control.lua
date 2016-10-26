@@ -163,7 +163,7 @@ script.on_event(defines.events.on_built_entity, function(event)
         -- do nothing when placing ghosts
         return
     elseif entity.name == "straight-rail" or entity.name == "curved-rail" then
-        -- rail laying is a bit annoying. ghosting won't work, so just allow it
+        -- rail laying is a bit annoying. ghosting often won't work, so just allow it
         return
     elseif entity.type == "locomotive" or entity.type == "cargo-wagon" or entity.type == "car" then
         -- can't ghost locomotives/wagons/cars either
@@ -178,15 +178,15 @@ script.on_event(defines.events.on_built_entity, function(event)
     end
     local player = game.players[event.player_index]
     local cursor = player.cursor_stack
-    if cursor and cursor.valid_for_read then
+    if cursor and cursor.valid_for_read and cursor.name == entity.name then
         -- happens when we build eg. a transport belt on top of a transport belt
-        if cursor.name ~= entity.name then
-            -- TODO: check if this ever happens
-            game.print("Cursor unexpectedly valid for read: " .. cursor.name .. " - " .. entity.name)
-        end
+        -- only rotates belt, cursor already contains right item and we don't want to build a ghost
     else
         -- put item back on cursor
-        cursor.set_stack{name = entity.name, count = 1}
+        for _, item in pairs(entity.prototype.items_to_place_this) do
+            cursor.set_stack{name = item.name, count = 1}
+            break
+        end
 
         -- disable built entity
         entity.active = false
@@ -205,25 +205,6 @@ script.on_event(defines.events.on_built_entity, function(event)
         end
         config.event[ghost_tick] = {
             create_ghost = entity
-        }
-    end
-end)
-
-script.on_event(defines.events.on_robot_built_entity, function(event)
-    local entity = event.created_entity
-    if (entity.type == "ammo-turret" or entity.type == "electric-turret") and math.random() > 0.998 then
-        local force = entity.force
-        -- make this turret malfunction sometime in the future
-        -- this should not happen often!
-        -- ~0.2% of the turrets will malfunction, and they may be removed before they malfunction
-        local config = forceConfig(force.name)
-        local malfunction_tick = game.tick + math.random(36000, 864000) -- 10 to 240 minutes until malfunction
-        while config.event[malfunction_tick] do
-            -- already an event on this tick. max one event per tick
-            malfunction_tick = malfunction_tick + 1
-        end
-        config.event[malfunction_tick] = {
-            malfunction = entity
         }
     end
 end)
@@ -252,9 +233,12 @@ function inventoryChanged(event)
 end
 
 function itemCountAllowed(name, count)
-    if name == "red-wire" or name == "green-wire" or name == "copper-cable" then
-        -- need these for circuitry
-        return count
+    if name == "red-wire" or name == "green-wire" then
+        -- need these for circuitry, one stack is enough
+        return math.min(200, count)
+    elseif name == "copper-cable" then
+        -- need this for manually connecting poles, but don't want player to manually move stuff around so we'll limit it
+        return math.min(10, count)
     elseif name == "blueprint" or name == "deconstruction-planner" or name == "blueprint-book" then
         -- these only place ghosts
         return count
@@ -540,12 +524,6 @@ script.on_event(defines.events.on_tick, function(event)
                         entity.destroy()
                     end
                 end
-            end
-
-            entity = force_event.malfunction
-            if entity and entity.valid then
-                player.force.print({"brave-new-world.turret_entity", entity.localised_name})
-                entity.force = "enemy"
             end
         end
         config.event[game.tick] = nil
