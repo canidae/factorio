@@ -123,20 +123,23 @@ function startNextResearch(force)
     local least_effort = nil
     local fewest_ingredients = nil
     for _, techname in pairs(config.prioritized_techs) do
-        local tech = getPretechIfNeeded(force.technologies[techname])
-        local should_replace = false
-        -- so easy to get this wrong (which i already did), so we'll take the less compact, but more readable route
-        if not next_research then
-            should_replace = true
-        elseif config.fewest_ingredients then
-            if #tech.research_unit_ingredients < fewest_ingredients then
+        local tech = force.technologies[techname]
+        if tech then
+            tech = getPretechIfNeeded(tech)
+            local should_replace = false
+            -- so easy to get this wrong (which i already did), so we'll take the less compact, but more readable route
+            if not next_research then
                 should_replace = true
+            elseif config.fewest_ingredients then
+                if #tech.research_unit_ingredients < fewest_ingredients then
+                    should_replace = true
+                end
             end
-        end
-        if should_replace and canResearch(force, tech) then
-            next_research = techname
-            least_effort = 0
-            fewest_ingredients = #tech.research_unit_ingredients
+            if should_replace and canResearch(force, tech) then
+                next_research = techname
+                least_effort = 0
+                fewest_ingredients = #tech.research_unit_ingredients
+            end
         end
     end
 
@@ -200,13 +203,13 @@ function onResearchFinished(event)
     -- remove researched stuff from prioritized_techs and deprioritized_techs
     for i = #config.prioritized_techs, 1, -1 do
         local tech = force.technologies[config.prioritized_techs[i]]
-        if tech and tech.researched then
+        if not tech or tech.researched then
             table.remove(config.prioritized_techs, i)
         end
     end
     for i = #config.deprioritized_techs, 1, -1 do
         local tech = force.technologies[config.deprioritized_techs[i]]
-        if tech and tech.researched then
+        if not tech or tech.researched then
             table.remove(config.deprioritized_techs, i)
         end
     end
@@ -374,16 +377,18 @@ gui = {
         }
         if #technologies > 0 then
             for _, techname in pairs(technologies) do
-                local entryflow = flow.add{type = "flow", style = "auto_research_tech_flow", direction = "horizontal"}
                 local tech = player.force.technologies[techname]
-                entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "auto_research_delete-" .. techname, sprite = "auto_research_delete"}
-                entryflow.add{type = "label", style = "auto_research_tech_label", caption = tech.localised_name}
-                for _, ingredient in pairs(tech.research_unit_ingredients) do
-                    local sprite = "auto_research_tool_" .. ingredient.name
-                    if not player.gui.is_valid_sprite_path(sprite) then
-                        sprite = "auto_research_unknown"
+                if tech then
+                    local entryflow = flow.add{type = "flow", style = "auto_research_tech_flow", direction = "horizontal"}
+                    entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "auto_research_delete-" .. techname, sprite = "auto_research_delete"}
+                    entryflow.add{type = "label", style = "auto_research_tech_label", caption = tech.localised_name}
+                    for _, ingredient in pairs(tech.research_unit_ingredients) do
+                        local sprite = "auto_research_tool_" .. ingredient.name
+                        if not player.gui.is_valid_sprite_path(sprite) then
+                            sprite = "auto_research_unknown"
+                        end
+                        entryflow.add{type = "sprite", style = "auto_research_sprite", sprite = sprite}
                     end
-                    entryflow.add{type = "sprite", style = "auto_research_sprite", sprite = sprite}
                 end
             end
         else
