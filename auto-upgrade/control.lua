@@ -122,7 +122,7 @@ function findNetwork(entity, config)
                 if entity.position.x >= position.x - range and entity.position.x <= position.x + range then
                     if entity.position.y >= position.y - range and entity.position.y <= position.y + range then
                         -- entity within reach of this roboport
-                        if roboport.logistic_network.available_construction_robots > 9 then
+                        if roboport.logistic_network and roboport.logistic_network.available_construction_robots > 9 then
                             -- and we got available construction robots (checking that we got a few to avoid DUTDUT)
                             return roboport.logistic_network
                         end
