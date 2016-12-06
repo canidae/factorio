@@ -142,7 +142,7 @@ function upgradeEntityIfNecessary(entity, config)
     end
     local player
     for _, force_player in pairs(entity.force.players) do
-        if not force_player.cursor_stack.valid_for_read then
+        if force_player.cursor stack and not force_player.cursor_stack.valid_for_read then
             player = force_player
         end
     end
