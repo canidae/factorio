@@ -1,0 +1,10 @@
+{
+  "name": "auto-stock",
+  "version": "1.0.0",
+  "factorio_version": "0.14",
+  "title": "Auto Stock",
+  "author": "canidae",
+  "contact": "canidae@exent.net",
+  "homepage": "http://exent.net",
+  "description": "Automatically stock player with configured items in the in-game auto trash feature when you have less than the specified amount."
+}
