@@ -1,5 +1,3 @@
-global.auto_stock = {}
-
 script.on_event(defines.events.on_tick, function()
     if game.tick % 128 ~= 0 then
         return
@@ -9,6 +7,9 @@ script.on_event(defines.events.on_tick, function()
             local atf = player.auto_trash_filters
             if atf then
                 -- add any temporarily removed auto trash rules
+                if not global.auto_stock then
+                    global.auto_stock = {}
+                end
                 if global.auto_stock[player.name] then
                     for item, count in pairs(global.auto_stock[player.name]) do
                         atf[item] = count
