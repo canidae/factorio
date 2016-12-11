@@ -6,15 +6,19 @@ script.on_event(defines.events.on_tick, function()
         if player.connected and player.character and player.force.technologies["auto-character-logistic-trash-slots"].researched then
             local atf = player.auto_trash_filters
             if atf then
-                -- add any temporarily removed auto trash rules
+                -- add any temporarily ignored auto trash rules
                 if not global.auto_stock then
                     global.auto_stock = {}
                 end
-                if global.auto_stock[player.name] then
-                    for item, count in pairs(global.auto_stock[player.name]) do
+                if not global.auto_stock[player.name] then
+                    global.auto_stock[player.name] = {}
+                end
+                local config = global.auto_stock[player.name]
+                if config.ignored then
+                    for item, count in pairs(config.ignored) do
                         atf[item] = count
                     end
-                    global.auto_stock[player.name] = nil
+                    config.ignored = nil
                 end
                 local slots = player.character.request_slot_count
                 -- create table of existing requests
@@ -27,12 +31,12 @@ script.on_event(defines.events.on_tick, function()
                 end
                 -- compare with auto trash settings and modify logistics table as needed
                 for item, count in pairs(atf) do
-                    if logistics[item] and logistics[item] > count then
-                        -- requesting more than trashing, temporarily remove auto trash setting
-                        if not global.auto_stock[player.name] then
-                            global.auto_stock[player.name] = {}
+                    if logistics[item] and logistics[item] ~= count and (not config.previous or not config.previous[item] or config.previous[item] == count) then
+                        -- user setup custom logistics request and user haven't changed auto trash for item, temporarily remove auto trash setting
+                        if not config.ignored then
+                            config.ignored = {}
                         end
-                        global.auto_stock[player.name][item] = count
+                        config.ignored[item] = count
                         atf[item] = nil
                     else
                         if player.get_item_count(item) < count then
@@ -46,6 +50,8 @@ script.on_event(defines.events.on_tick, function()
                 end
                 -- setup new auto trash
                 player.auto_trash_filters = atf
+                -- remember old auto trash settings so we can detect when player changes anything
+                config.previous = atf
                 -- setup new requests
                 local slot = 1
                 for item, count in pairs(logistics) do
