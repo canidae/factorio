@@ -55,6 +55,9 @@ script.on_event(defines.events.on_tick, function()
                 -- setup new requests
                 local slot = 1
                 for item, count in pairs(logistics) do
+                    if slot > slots then
+                        break
+                    end
                     player.character.set_request_slot({name = item, count = count}, slot)
                     slot = slot + 1
                 end
