@@ -1,10 +1,11 @@
 {
   "name": "auto-research",
-  "version": "2.2.1",
-  "factorio_version": "0.14",
+  "version": "3.0.0",
+  "factorio_version": "0.15",
   "title": "Auto Research",
   "author": "canidae",
   "contact": "canidae@exent.net",
   "homepage": "http://exent.net",
-  "description": "Automates research. Toggle GUI with Shift+T (customizable). Chooses research in the following order: Fewest types of science packs (can be disabled), prioritized technologies, prerequisites for prioritized technologies, least effort technologies (effort = science packs * energy)."
+  "description": "Automates research. Toggle GUI with Shift+T (customizable). Chooses research in the following order: Fewest types of science packs (can be disabled), prioritized technologies, prerequisites for prioritized technologies, least effort technologies (effort = science packs * energy).",
+  "dependencies": ["base >= 0.15.0"]
 }

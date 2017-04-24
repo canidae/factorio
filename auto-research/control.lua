@@ -108,7 +108,7 @@ end
 
 function nonStandardIngredient(ingredient)
     local name = ingredient.name
-    return name ~= "science-pack-1" and name ~= "science-pack-2" and name ~= "science-pack-3" and name ~= "alien-science-pack"
+    return name ~= "science-pack-1" and name ~= "science-pack-2" and name ~= "science-pack-3" and name ~= "military-science-pack" and name ~= "production-science-pack" and name ~= "high-tech-science-pack" and name ~= "space-science-pack"
 end
 
 function startNextResearch(force)
