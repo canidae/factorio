@@ -47,6 +47,15 @@ script.on_event(defines.events.on_tick, function()
                             logistics[item] = nil
                         end
                     end
+                    if config.previous then
+                        config.previous[item] = nil
+                    end
+                end
+                -- check if player removed any auto trash filter
+                if config.previous then
+                    for item, count in pairs(config.previous) do
+                        logistics[item] = nil
+                    end
                 end
                 -- setup new auto trash
                 player.auto_trash_filters = atf
