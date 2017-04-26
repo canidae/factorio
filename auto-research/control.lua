@@ -78,13 +78,19 @@ function setAnnounceCompletedResearch(force, enabled)
     getConfig(force).announce_completed = enabled
 end
 
-function getPretechIfNeeded(tech)
-    for _, pretech in pairs(tech.prerequisites) do
-        if not pretech.researched and pretech.enabled then
-            return getPretechIfNeeded(pretech)
+function getPretechs(tech)
+    local pretechs = {}
+    pretechs[#pretechs + 1] = tech
+    local index = 1
+    while (index <= #pretechs) do
+        for _, pretech in pairs(pretechs[index].prerequisites) do
+            if pretech.enabled and not pretech.researched then
+                pretechs[#pretechs + 1]  = pretech
+            end
         end
+        index = index + 1
     end
-    return tech
+    return pretechs
 end
 
 function canResearch(force, tech)
@@ -125,20 +131,22 @@ function startNextResearch(force)
     for _, techname in pairs(config.prioritized_techs) do
         local tech = force.technologies[techname]
         if tech then
-            tech = getPretechIfNeeded(tech)
-            local should_replace = false
-            -- so easy to get this wrong (which i already did), so we'll take the less compact, but more readable route
-            if not next_research then
-                should_replace = true
-            elseif config.fewest_ingredients then
-                if #tech.research_unit_ingredients < fewest_ingredients then
+            local pretechs = getPretechs(tech)
+            for _, pretech in pairs(pretechs) do
+                local should_replace = false
+                -- so easy to get this wrong (which i already did), so we'll take the less compact, but more readable route
+                if not next_research then
                     should_replace = true
+                elseif config.fewest_ingredients then
+                    if #pretech.research_unit_ingredients < fewest_ingredients then
+                        should_replace = true
+                    end
                 end
-            end
-            if should_replace and canResearch(force, tech) then
-                next_research = techname
-                least_effort = 0
-                fewest_ingredients = #tech.research_unit_ingredients
+                if should_replace and canResearch(force, pretech) then
+                    next_research = pretech.name
+                    least_effort = 0
+                    fewest_ingredients = #pretech.research_unit_ingredients
+                end
             end
         end
     end
@@ -203,13 +211,13 @@ function onResearchFinished(event)
     -- remove researched stuff from prioritized_techs and deprioritized_techs
     for i = #config.prioritized_techs, 1, -1 do
         local tech = force.technologies[config.prioritized_techs[i]]
-        if not tech or tech.researched then
+        if not tech or tech.researched or tech.level > 1 then
             table.remove(config.prioritized_techs, i)
         end
     end
     for i = #config.deprioritized_techs, 1, -1 do
         local tech = force.technologies[config.deprioritized_techs[i]]
-        if not tech or tech.researched then
+        if not tech or tech.researched or tech.level > 1 then
             table.remove(config.deprioritized_techs, i)
         end
     end
