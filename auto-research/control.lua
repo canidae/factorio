@@ -211,19 +211,23 @@ function onResearchFinished(event)
     -- remove researched stuff from prioritized_techs and deprioritized_techs
     for i = #config.prioritized_techs, 1, -1 do
         local tech = force.technologies[config.prioritized_techs[i]]
-        if not tech or tech.researched or tech.level > 1 then
+        if not tech or tech.researched then
             table.remove(config.prioritized_techs, i)
         end
     end
     for i = #config.deprioritized_techs, 1, -1 do
         local tech = force.technologies[config.deprioritized_techs[i]]
-        if not tech or tech.researched or tech.level > 1 then
+        if not tech or tech.researched then
             table.remove(config.deprioritized_techs, i)
         end
     end
     -- announce completed research
     if config.announce_completed then
-        force.print{"auto_research.announce_completed", event.research.localised_name}
+        local level = ""
+        if event.research.research_unit_count_formula then
+            level = (event.research.researched and event.research.level) or (event.research.level - 1)
+        end
+        force.print{"auto_research.announce_completed", event.research.localised_name, level}
     end
 
     startNextResearch(event.research.force)
