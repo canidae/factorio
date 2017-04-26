@@ -162,7 +162,11 @@ function startNextResearch(force)
     end
     local next_research_deprioritized = next_research == nil
     for techname, tech in pairs(force.technologies) do
-        local effort = tech.research_unit_count * tech.research_unit_energy
+        local tech_ingredients = 0
+        for _, ingredient in pairs(tech.research_unit_ingredients) do
+            tech_ingredients = tech_ingredients + ingredient.amount
+        end
+        local effort = tech.research_unit_count * tech.research_unit_energy * tech_ingredients
         local should_replace = false
         local deprioritized = isDeprioritized(config, techname)
         if not next_research then
