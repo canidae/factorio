@@ -39,6 +39,48 @@ data.raw["gui-style"].default["auto_research_sprite_button"] = {
     }
 }
 
+data.raw["gui-style"].default["auto_research_sprite_button_toggle"] = {
+    type = "button_style",
+    parent = "auto_research_sprite_button",
+    default_graphical_set = {
+        type = "composition",
+        filename = "__core__/graphics/gui.png",
+        priority = "extra-high-no-scale",
+        load_in_minimal_mode = true,
+        corner_size = {3, 3},
+        position = {0, 0}
+    },
+    hovered_graphical_set = {
+        type = "composition",
+        filename = "__core__/graphics/gui.png",
+        priority = "extra-high-no-scale",
+        load_in_minimal_mode = true,
+        corner_size = {3, 3},
+        position = {0, 8}
+    }
+}
+
+data.raw["gui-style"].default["auto_research_sprite_button_toggle_pressed"] = {
+    type = "button_style",
+    parent = "auto_research_sprite_button_toggle",
+    default_graphical_set = {
+        type = "composition",
+        filename = "__core__/graphics/gui.png",
+        priority = "extra-high-no-scale",
+        load_in_minimal_mode = true,
+        corner_size = {3, 3},
+        position = {0, 40}
+    },
+    hovered_graphical_set = {
+        type = "composition",
+        filename = "__core__/graphics/gui.png",
+        priority = "extra-high-no-scale",
+        load_in_minimal_mode = true,
+        corner_size = {3, 3},
+        position = {0, 48}
+    }
+}
+
 data.raw["gui-style"].default["auto_research_tech_label"] = {
     type = "label_style",
     parent = "label_style",

@@ -18,14 +18,20 @@ function getConfig(force)
         -- Research technologies requiring fewest ingredients first
         setFewestIngredientsEnabled(force, true)
 
-        -- Disallow non-standard recipies
-        setExtendedEnabled(force, false)
-
         -- Allow switching research
         setAllowSwitchingEnabled(force, true)
 
         -- Print researched technology
         setAnnounceCompletedResearch(force, true)
+    end
+    if not global.auto_research_config[force.name].allowed_ingredients then
+        -- find all possible tech ingredients
+        global.auto_research_config[force.name].allowed_ingredients = {}
+        for _, tech in pairs(force.technologies) do
+            for _, ingredient in pairs(tech.research_unit_ingredients) do
+                global.auto_research_config[force.name].allowed_ingredients[ingredient.name] = true
+            end
+        end
     end
     return global.auto_research_config[force.name]
 end
@@ -36,16 +42,6 @@ function setAutoResearchEnabled(force, enabled)
     end
     local config = getConfig(force)
     config.enabled = enabled
-
-    -- start new research
-    startNextResearch(force)
-end
-
-function setExtendedEnabled(force, enabled)
-    if not force then
-        return
-    end
-    getConfig(force).extended_enabled = enabled
 
     -- start new research
     startNextResearch(force)
@@ -93,7 +89,7 @@ function getPretechs(tech)
     return pretechs
 end
 
-function canResearch(force, tech)
+function canResearch(force, tech, config)
     if not tech or tech.researched or not tech.enabled then
         return false
     end
@@ -102,19 +98,12 @@ function canResearch(force, tech)
             return false
         end
     end
-    if not getConfig(force).extended_enabled then
-        for _, ingredient in pairs(tech.research_unit_ingredients) do
-            if nonStandardIngredient(ingredient) then
-                return false
-            end
+    for _, ingredient in pairs(tech.research_unit_ingredients) do
+        if not config.allowed_ingredients[ingredient.name] then
+            return false
         end
     end
     return true
-end
-
-function nonStandardIngredient(ingredient)
-    local name = ingredient.name
-    return name ~= "science-pack-1" and name ~= "science-pack-2" and name ~= "science-pack-3" and name ~= "military-science-pack" and name ~= "production-science-pack" and name ~= "high-tech-science-pack" and name ~= "space-science-pack"
 end
 
 function startNextResearch(force)
@@ -142,7 +131,7 @@ function startNextResearch(force)
                         should_replace = true
                     end
                 end
-                if should_replace and canResearch(force, pretech) then
+                if should_replace and canResearch(force, pretech, config) then
                     next_research = pretech.name
                     least_effort = 0
                     fewest_ingredients = #pretech.research_unit_ingredients
@@ -198,7 +187,7 @@ function startNextResearch(force)
         elseif effort < least_effort then
             should_replace = true
         end
-        if should_replace and canResearch(force, tech) then
+        if should_replace and canResearch(force, tech, config) then
             next_research = techname
             least_effort = effort
             fewest_ingredients = #tech.research_unit_ingredients
@@ -261,9 +250,22 @@ gui = {
             -- checkboxes
             frameflow.add{type = "checkbox", name = "auto_research_enabled", caption = {"auto_research_gui.enabled"}, tooltip = {"auto_research_gui.enabled_tooltip"}, state = config.enabled or false}
             frameflow.add{type = "checkbox", name = "auto_research_fewest_ingredients", caption = {"auto_research_gui.fewest_ingredients"}, tooltip = {"auto_research_gui.fewest_ingredients_tooltip"}, state = config.fewest_ingredients or false}
-            frameflow.add{type = "checkbox", name = "auto_research_extended_enabled", caption = {"auto_research_gui.extended_enabled"}, tooltip = {"auto_research_gui.extended_enabled_tooltip"}, state = config.extended_enabled or false}
             frameflow.add{type = "checkbox", name = "auto_research_allow_switching", caption = {"auto_research_gui.allow_switching"}, tooltip = {"auto_research_gui.allow_switching_tooltip"}, state = config.allow_switching or false}
             frameflow.add{type = "checkbox", name = "auto_research_announce_completed", caption = {"auto_research_gui.announce_completed"}, tooltip = {"auto_research_gui.announce_completed_tooltip"}, state = config.announce_completed or false}
+
+            -- allowed ingredients
+            frameflow.add{
+                type = "label",
+                style = "auto_research_header_label",
+                caption = {"auto_research_gui.allowed_ingredients_label"}
+            }
+            local allowed_ingredients = frameflow.add{
+                type = "flow",
+                style = "auto_research_tech_flow",
+                name = "allowed_ingredients",
+                direction = "horizontal"
+            }
+            gui.updateAllowedIngredientsList(player.gui.top.auto_research_gui.flow.allowed_ingredients, player, config)
 
             -- prioritized techs
             frameflow.add{
@@ -340,46 +342,62 @@ gui = {
             setAutoResearchEnabled(force, event.element.state)
         elseif name == "auto_research_fewest_ingredients" then
             setFewestIngredientsEnabled(force, event.element.state)
-        elseif name == "auto_research_extended_enabled" then
-            setExtendedEnabled(force, event.element.state)
         elseif name == "auto_research_allow_switching" then
             setAllowSwitchingEnabled(force, event.element.state)
         elseif name == "auto_research_announce_completed" then
             setAnnounceCompletedResearch(force, event.element.state)
         else
-            local prefix, techname = string.match(name, "^auto_research_([^-]*)-(.*)$")
-            if techname and force.technologies[techname] then
+            local prefix, name = string.match(name, "^auto_research_([^-]*)-(.*)$")
+            if prefix == "allow_ingredient" then
+                config.allowed_ingredients[name] = not config.allowed_ingredients[name]
+                gui.updateAllowedIngredientsList(player.gui.top.auto_research_gui.flow.allowed_ingredients, player, config)
+                startNextResearch(force)
+            elseif name and force.technologies[name] then
                 -- remove tech from prioritized list
                 for i = #config.prioritized_techs, 1, -1 do
-                    if config.prioritized_techs[i] == techname then
+                    if config.prioritized_techs[i] == name then
                         table.remove(config.prioritized_techs, i)
                     end
                 end
                 -- and from deprioritized list
                 for i = #config.deprioritized_techs, 1, -1 do
-                    if config.deprioritized_techs[i] == techname then
+                    if config.deprioritized_techs[i] == name then
                         table.remove(config.deprioritized_techs, i)
                     end
                 end
                 if prefix == "prioritize_top" then
                     -- add tech to top of prioritized list
-                    table.insert(config.prioritized_techs, 1, techname)
+                    table.insert(config.prioritized_techs, 1, name)
                 elseif prefix == "prioritize_bottom" then
                     -- add tech to bottom of prioritized list
-                    table.insert(config.prioritized_techs, techname)
+                    table.insert(config.prioritized_techs, name)
                 elseif prefix == "deprioritize" then
                     -- add tech to list of deprioritized techs
-                    table.insert(config.deprioritized_techs, techname)
+                    table.insert(config.deprioritized_techs, name)
                 end
                 gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.prioritized, config.prioritized_techs, player)
                 gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.deprioritized, config.deprioritized_techs, player)
-        
+
                 -- start new research
                 startNextResearch(force)
             end
         end
     end,
 
+    updateAllowedIngredientsList = function(flow, player, config)
+        if flow.flow then
+            flow.flow.destroy()
+        end
+        local flow = flow.add {
+            type = "flow",
+            style = "auto_research_tech_flow",
+            name = "flow",
+            direction = "horizontal"
+        }
+        for ingredientname, allowed in pairs(config.allowed_ingredients) do
+            flow.add{type = "sprite-button", style = "auto_research_sprite_button_toggle" .. (allowed and "_pressed" or ""), name = "auto_research_allow_ingredient-" .. ingredientname, sprite = "auto_research_tool_" .. ingredientname}
+        end
+    end,
 
     updateTechnologyList = function(scrollpane, technologies, player)
         if scrollpane.flow then
@@ -496,7 +514,6 @@ end)
 -- Add remote interfaces for enabling/disabling Auto Research
 remote.add_interface("auto_research", {
     enabled = setAutoResearchEnabled,
-    extended = setExtendedEnabled,
     fewest_ingredients = setFewestIngredientsEnabled,
     allow_switching = setAllowSwitchingEnabled,
     announce_completed = setAnnounceCompletedResearch
