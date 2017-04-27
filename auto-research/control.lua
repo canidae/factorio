@@ -261,9 +261,9 @@ gui = {
             }
             local allowed_ingredients = frameflow.add{
                 type = "flow",
-                style = "auto_research_tech_flow",
+                style = "auto_research_list_flow",
                 name = "allowed_ingredients",
-                direction = "horizontal"
+                direction = "vertical"
             }
             gui.updateAllowedIngredientsList(player.gui.top.auto_research_gui.flow.allowed_ingredients, player, config)
 
@@ -385,17 +385,29 @@ gui = {
     end,
 
     updateAllowedIngredientsList = function(flow, player, config)
-        if flow.flow then
-            flow.flow.destroy()
+        local counter = 1
+        while flow["flow" .. counter] do
+            flow["flow" .. counter].destroy()
+            counter = counter + 1
         end
-        local flow = flow.add {
-            type = "flow",
-            style = "auto_research_tech_flow",
-            name = "flow",
-            direction = "horizontal"
-        }
+        counter = 1
         for ingredientname, allowed in pairs(config.allowed_ingredients) do
-            flow.add{type = "sprite-button", style = "auto_research_sprite_button_toggle" .. (allowed and "_pressed" or ""), name = "auto_research_allow_ingredient-" .. ingredientname, sprite = "auto_research_tool_" .. ingredientname}
+            local flowname = "flow" .. math.floor(counter / 10) + 1
+            local ingredientflow = flow[flowname]
+            if not ingredientflow then
+                ingredientflow = flow.add {
+                    type = "flow",
+                    style = "auto_research_tech_flow",
+                    name = flowname,
+                    direction = "horizontal"
+                }
+            end
+            local sprite = "auto_research_tool_" .. ingredientname
+            if not player.gui.is_valid_sprite_path(sprite) then
+                sprite = "auto_research_unknown"
+            end
+            ingredientflow.add{type = "sprite-button", style = "auto_research_sprite_button_toggle" .. (allowed and "_pressed" or ""), name = "auto_research_allow_ingredient-" .. ingredientname, sprite = sprite}
+            counter = counter + 1
         end
     end,
 
