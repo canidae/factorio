@@ -13,13 +13,13 @@ function getConfig(force)
             deprioritized_techs = {}
         }
         -- Enable Auto Research
-        setAutoResearchEnabled(force, true)
+        setAutoResearch(force, true)
 
-        -- Research technologies requiring fewest ingredients first
-        setFewestIngredientsEnabled(force, true)
+        -- Disable prioritized only
+        setPrioritizedOnly(force, false)
 
         -- Allow switching research
-        setAllowSwitchingEnabled(force, true)
+        setAllowSwitching(force, true)
 
         -- Print researched technology
         setAnnounceCompletedResearch(force, true)
@@ -36,7 +36,7 @@ function getConfig(force)
     return global.auto_research_config[force.name]
 end
 
-function setAutoResearchEnabled(force, enabled)
+function setAutoResearch(force, enabled)
     if not force then
         return
     end
@@ -47,17 +47,17 @@ function setAutoResearchEnabled(force, enabled)
     startNextResearch(force)
 end
 
-function setFewestIngredientsEnabled(force, enabled)
+function setPrioritizedOnly(force, enabled)
     if not force then
         return
     end
-    getConfig(force).fewest_ingredients = enabled
+    getConfig(force).prioritized_only = enabled
 
     -- start new research
     startNextResearch(force)
 end
 
-function setAllowSwitchingEnabled(force, enabled)
+function setAllowSwitching(force, enabled)
     if not force then
         return
     end
@@ -113,85 +113,67 @@ function startNextResearch(force)
     end
     config.last_research_finish_tick = game.tick -- if multiple research finish same tick for same force, the user probably enabled all techs
 
+    -- function for calculating tech effort
+    local calcEffort = function(tech)
+        local tech_ingredients = 0
+        for _, ingredient in pairs(tech.research_unit_ingredients) do
+            tech_ingredients = tech_ingredients + ingredient.amount
+        end
+        return tech.research_unit_count * tech.research_unit_energy * tech_ingredients
+    end
+
     -- see if there are some techs we should research first
     local next_research = nil
     local least_effort = nil
-    local fewest_ingredients = nil
     for _, techname in pairs(config.prioritized_techs) do
         local tech = force.technologies[techname]
         if tech then
             local pretechs = getPretechs(tech)
             for _, pretech in pairs(pretechs) do
-                local should_replace = false
-                -- so easy to get this wrong (which i already did), so we'll take the less compact, but more readable route
-                if not next_research then
-                    should_replace = true
-                elseif config.fewest_ingredients then
-                    if #pretech.research_unit_ingredients < fewest_ingredients then
-                        should_replace = true
+                if canResearch(force, pretech, config) then
+                    local effort = calcEffort(pretech)
+                    if not next_research or effort < least_effort then
+                        next_research = pretech.name
+                        least_effort = effort
                     end
-                end
-                if should_replace and canResearch(force, pretech, config) then
-                    next_research = pretech.name
-                    least_effort = 0
-                    fewest_ingredients = #pretech.research_unit_ingredients
                 end
             end
         end
     end
 
-    -- if no prioritized tech should be researched first then research the "least effort" tech not researched yet
-    local isDeprioritized = function(config, techname)
-        for _, deprioritized in pairs(config.deprioritized_techs) do
-            if techname == deprioritized then
-                return true
+    -- if no prioritized tech should be researched then research the "least effort" tech not researched yet
+    if not config.prioritized_only and not next_research then
+        local isDeprioritized = function(config, techname)
+            for _, deprioritized in pairs(config.deprioritized_techs) do
+                if techname == deprioritized then
+                    return true
+                end
             end
+            return false
         end
-        return false
-    end
-    local next_research_deprioritized = next_research == nil
-    for techname, tech in pairs(force.technologies) do
-        local tech_ingredients = 0
-        for _, ingredient in pairs(tech.research_unit_ingredients) do
-            tech_ingredients = tech_ingredients + ingredient.amount
-        end
-        local effort = tech.research_unit_count * tech.research_unit_energy * tech_ingredients
-        local should_replace = false
-        local deprioritized = isDeprioritized(config, techname)
-        if not next_research then
-            should_replace = true
-        elseif next_research_deprioritized or deprioritized then
-            if next_research_deprioritized and deprioritized then
-                if config.fewest_ingredients then
-                    if #tech.research_unit_ingredients < fewest_ingredients then
+        local next_research_deprioritized = next_research == nil
+        for techname, tech in pairs(force.technologies) do
+            local effort = calcEffort(tech)
+            local should_replace = false
+            local deprioritized = isDeprioritized(config, techname)
+            if not next_research then
+                should_replace = true
+            elseif next_research_deprioritized or deprioritized then
+                if next_research_deprioritized and deprioritized then
+                    if effort < least_effort then
                         should_replace = true
-                    elseif #tech.research_unit_ingredients == fewest_ingredients then
-                        if effort < least_effort then
-                            should_replace = true
-                        end
                     end
-                elseif effort < least_effort then
+                elseif not deprioritized then
                     should_replace = true
                 end
-            elseif not deprioritized then
+            elseif effort < least_effort then
                 should_replace = true
             end
-        elseif config.fewest_ingredients then
-            if #tech.research_unit_ingredients < fewest_ingredients then
-                should_replace = true
-            elseif #tech.research_unit_ingredients == fewest_ingredients then
-                if effort < least_effort then
-                    should_replace = true
-                end
+            if should_replace and canResearch(force, tech, config) then
+                next_research = techname
+                least_effort = effort
+                next_research_deprioritized = deprioritized
             end
-        elseif effort < least_effort then
-            should_replace = true
-        end
-        if should_replace and canResearch(force, tech, config) then
-            next_research = techname
-            least_effort = effort
-            fewest_ingredients = #tech.research_unit_ingredients
-            next_research_deprioritized = deprioritized
         end
     end
 
@@ -249,7 +231,7 @@ gui = {
 
             -- checkboxes
             frameflow.add{type = "checkbox", name = "auto_research_enabled", caption = {"auto_research_gui.enabled"}, tooltip = {"auto_research_gui.enabled_tooltip"}, state = config.enabled or false}
-            frameflow.add{type = "checkbox", name = "auto_research_fewest_ingredients", caption = {"auto_research_gui.fewest_ingredients"}, tooltip = {"auto_research_gui.fewest_ingredients_tooltip"}, state = config.fewest_ingredients or false}
+            frameflow.add{type = "checkbox", name = "auto_research_prioritized_only", caption = {"auto_research_gui.prioritized_only"}, tooltip = {"auto_research_gui.prioritized_only_tooltip"}, state = config.prioritized_only or false}
             frameflow.add{type = "checkbox", name = "auto_research_allow_switching", caption = {"auto_research_gui.allow_switching"}, tooltip = {"auto_research_gui.allow_switching_tooltip"}, state = config.allow_switching or false}
             frameflow.add{type = "checkbox", name = "auto_research_announce_completed", caption = {"auto_research_gui.announce_completed"}, tooltip = {"auto_research_gui.announce_completed_tooltip"}, state = config.announce_completed or false}
 
@@ -339,11 +321,11 @@ gui = {
         local config = getConfig(force)
         local name = event.element.name
         if name == "auto_research_enabled" then
-            setAutoResearchEnabled(force, event.element.state)
-        elseif name == "auto_research_fewest_ingredients" then
-            setFewestIngredientsEnabled(force, event.element.state)
+            setAutoResearch(force, event.element.state)
+        elseif name == "auto_research_prioritized_only" then
+            setPrioritizedOnly(force, event.element.state)
         elseif name == "auto_research_allow_switching" then
-            setAllowSwitchingEnabled(force, event.element.state)
+            setAllowSwitching(force, event.element.state)
         elseif name == "auto_research_announce_completed" then
             setAnnounceCompletedResearch(force, event.element.state)
         else
@@ -525,8 +507,8 @@ end)
 
 -- Add remote interfaces for enabling/disabling Auto Research
 remote.add_interface("auto_research", {
-    enabled = setAutoResearchEnabled,
-    fewest_ingredients = setFewestIngredientsEnabled,
-    allow_switching = setAllowSwitchingEnabled,
+    enabled = setAutoResearch,
+    prioritized_only = setPrioritizedOnly,
+    allow_switching = setAllowSwitching,
     announce_completed = setAnnounceCompletedResearch
 })
