@@ -1,4 +1,4 @@
-function getConfig(force)
+function getConfig(force, clear_allowed_ingredients)
     if not global.auto_research_config then
         global.auto_research_config = {}
 
@@ -24,7 +24,7 @@ function getConfig(force)
         -- Print researched technology
         setAnnounceCompletedResearch(force, true)
     end
-    if not global.auto_research_config[force.name].allowed_ingredients then
+    if not global.auto_research_config[force.name].allowed_ingredients or clear_allowed_ingredients then
         -- find all possible tech ingredients
         global.auto_research_config[force.name].allowed_ingredients = {}
         for _, tech in pairs(force.technologies) do
@@ -481,7 +481,7 @@ gui = {
 -- event hooks
 script.on_configuration_changed(function()
     for _, force in pairs(game.forces) do
-        getConfig(force) -- triggers initialization of force config
+        getConfig(force, true) -- triggers initialization of force config
     end
 end)
 script.on_event(defines.events.on_player_created, function(event)
