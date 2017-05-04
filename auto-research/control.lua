@@ -1,4 +1,4 @@
-function getConfig(force, clear_allowed_ingredients)
+function getConfig(force, rescan_allowed_ingredients)
     if not global.auto_research_config then
         global.auto_research_config = {}
 
@@ -24,12 +24,19 @@ function getConfig(force, clear_allowed_ingredients)
         -- Print researched technology
         setAnnounceCompletedResearch(force, true)
     end
-    if not global.auto_research_config[force.name].allowed_ingredients or clear_allowed_ingredients then
+    if not global.auto_research_config[force.name].allowed_ingredients or rescan_allowed_ingredients then
+        -- remember any old ingredients
+        local old_ingredients = {}
+        if global.auto_research_config[force.name].allowed_ingredients then
+            for name, enabled in pairs(global.auto_research_config[force.name].allowed_ingredients) do
+                old_ingredients[name] = enabled
+            end
+        end
         -- find all possible tech ingredients
         global.auto_research_config[force.name].allowed_ingredients = {}
         for _, tech in pairs(force.technologies) do
             for _, ingredient in pairs(tech.research_unit_ingredients) do
-                global.auto_research_config[force.name].allowed_ingredients[ingredient.name] = true
+                global.auto_research_config[force.name].allowed_ingredients[ingredient.name] = (old_ingredients[ingredient.name] == nil or old_ingredients[ingredient.name])
             end
         end
     end
