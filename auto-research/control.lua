@@ -9,14 +9,14 @@ function getConfig(force, rescan_allowed_ingredients)
     end
     if not global.auto_research_config[force.name] then
         global.auto_research_config[force.name] = {
-            prioritized_techs = {},
-            deprioritized_techs = {}
+            prioritized_techs = {}, -- "prioritized" is "queued". kept for backwards compatability (because i'm lazy and don't want migration code)
+            deprioritized_techs = {} -- "deprioritized" is "blacklisted". kept for backwards compatability (because i'm lazy and don't want migration code)
         }
         -- Enable Auto Research
         setAutoResearch(force, true)
 
-        -- Disable prioritized only
-        setPrioritizedOnly(force, false)
+        -- Disable queued only
+        setQueuedOnly(force, false)
 
         -- Allow switching research
         setAllowSwitching(force, true)
@@ -54,7 +54,7 @@ function setAutoResearch(force, enabled)
     startNextResearch(force)
 end
 
-function setPrioritizedOnly(force, enabled)
+function setQueuedOnly(force, enabled)
     if not force then
         return
     end
@@ -110,6 +110,11 @@ function canResearch(force, tech, config)
             return false
         end
     end
+    for _, deprioritized in pairs(config.deprioritized_techs) do
+        if tech.name == deprioritized then
+            return false
+        end
+    end
     return true
 end
 
@@ -137,49 +142,22 @@ function startNextResearch(force)
         if tech then
             local pretechs = getPretechs(tech)
             for _, pretech in pairs(pretechs) do
-                if canResearch(force, pretech, config) then
-                    local effort = calcEffort(pretech)
-                    if not next_research or effort < least_effort then
-                        next_research = pretech.name
-                        least_effort = effort
-                    end
+                local effort = calcEffort(pretech)
+                if (not least_effort or effort < least_effort) and canResearch(force, pretech, config) then
+                    next_research = pretech.name
+                    least_effort = effort
                 end
             end
         end
     end
 
-    -- if no prioritized tech should be researched then research the "least effort" tech not researched yet
+    -- if no queued tech should be researched then research the "least effort" tech not researched yet
     if not config.prioritized_only and not next_research then
-        local isDeprioritized = function(config, techname)
-            for _, deprioritized in pairs(config.deprioritized_techs) do
-                if techname == deprioritized then
-                    return true
-                end
-            end
-            return false
-        end
-        local next_research_deprioritized = next_research == nil
         for techname, tech in pairs(force.technologies) do
             local effort = calcEffort(tech)
-            local should_replace = false
-            local deprioritized = isDeprioritized(config, techname)
-            if not next_research then
-                should_replace = true
-            elseif next_research_deprioritized or deprioritized then
-                if next_research_deprioritized and deprioritized then
-                    if effort < least_effort then
-                        should_replace = true
-                    end
-                elseif not deprioritized then
-                    should_replace = true
-                end
-            elseif effort < least_effort then
-                should_replace = true
-            end
-            if should_replace and canResearch(force, tech, config) then
+            if (not least_effort or effort < least_effort) and canResearch(force, tech, config) then
                 next_research = techname
                 least_effort = effort
-                next_research_deprioritized = deprioritized
             end
         end
     end
@@ -238,7 +216,7 @@ gui = {
 
             -- checkboxes
             frameflow.add{type = "checkbox", name = "auto_research_enabled", caption = {"auto_research_gui.enabled"}, tooltip = {"auto_research_gui.enabled_tooltip"}, state = config.enabled or false}
-            frameflow.add{type = "checkbox", name = "auto_research_prioritized_only", caption = {"auto_research_gui.prioritized_only"}, tooltip = {"auto_research_gui.prioritized_only_tooltip"}, state = config.prioritized_only or false}
+            frameflow.add{type = "checkbox", name = "auto_research_queued_only", caption = {"auto_research_gui.prioritized_only"}, tooltip = {"auto_research_gui.prioritized_only_tooltip"}, state = config.prioritized_only or false}
             frameflow.add{type = "checkbox", name = "auto_research_allow_switching", caption = {"auto_research_gui.allow_switching"}, tooltip = {"auto_research_gui.allow_switching_tooltip"}, state = config.allow_switching or false}
             frameflow.add{type = "checkbox", name = "auto_research_announce_completed", caption = {"auto_research_gui.announce_completed"}, tooltip = {"auto_research_gui.announce_completed_tooltip"}, state = config.announce_completed or false}
 
@@ -329,8 +307,8 @@ gui = {
         local name = event.element.name
         if name == "auto_research_enabled" then
             setAutoResearch(force, event.element.state)
-        elseif name == "auto_research_prioritized_only" then
-            setPrioritizedOnly(force, event.element.state)
+        elseif name == "auto_research_queued_only" then
+            setQueuedOnly(force, event.element.state)
         elseif name == "auto_research_allow_switching" then
             setAllowSwitching(force, event.element.state)
         elseif name == "auto_research_announce_completed" then
@@ -354,13 +332,13 @@ gui = {
                         table.remove(config.deprioritized_techs, i)
                     end
                 end
-                if prefix == "prioritize_top" then
+                if prefix == "queue_top" then
                     -- add tech to top of prioritized list
                     table.insert(config.prioritized_techs, 1, name)
-                elseif prefix == "prioritize_bottom" then
+                elseif prefix == "queue_bottom" then
                     -- add tech to bottom of prioritized list
                     table.insert(config.prioritized_techs, name)
-                elseif prefix == "deprioritize" then
+                elseif prefix == "blacklist" then
                     -- add tech to list of deprioritized techs
                     table.insert(config.deprioritized_techs, name)
                 end
@@ -467,9 +445,9 @@ gui = {
                 if showtech then
                     shown = shown + 1
                     local entryflow = flow.add{type = "flow", style = "auto_research_tech_flow", direction = "horizontal"}
-                    entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "auto_research_prioritize_top-" .. name, sprite = "auto_research_prioritize_top"}
-                    entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "auto_research_prioritize_bottom-" .. name, sprite = "auto_research_prioritize_bottom"}
-                    entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "auto_research_deprioritize-" .. name, sprite = "auto_research_deprioritize"}
+                    entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "auto_research_queue_top-" .. name, sprite = "auto_research_prioritize_top"}
+                    entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "auto_research_queue_bottom-" .. name, sprite = "auto_research_prioritize_bottom"}
+                    entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "auto_research_blacklist-" .. name, sprite = "auto_research_deprioritize"}
                     entryflow.add{type = "label", style = "auto_research_tech_label", name = name, caption = tech.localised_name}
                     for _, ingredient in pairs(tech.research_unit_ingredients) do
                         local sprite = "auto_research_tool_" .. ingredient.name
@@ -515,7 +493,7 @@ end)
 -- Add remote interfaces for enabling/disabling Auto Research
 remote.add_interface("auto_research", {
     enabled = setAutoResearch,
-    prioritized_only = setPrioritizedOnly,
+    queued_only = setQueuedOnly,
     allow_switching = setAllowSwitching,
     announce_completed = setAnnounceCompletedResearch
 })
