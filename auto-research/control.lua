@@ -139,7 +139,7 @@ function startNextResearch(force)
     local least_effort = nil
     for _, techname in pairs(config.prioritized_techs) do
         local tech = force.technologies[techname]
-        if tech then
+        if tech and not next_research then
             local pretechs = getPretechs(tech)
             for _, pretech in pairs(pretechs) do
                 local effort = calcEffort(pretech)
