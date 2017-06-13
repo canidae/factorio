@@ -182,12 +182,17 @@ function onResearchFinished(event)
         end
     end
     -- announce completed research
-    if config.announce_completed then
-        local level = ""
-        if event.research.research_unit_count_formula then
-            level = (event.research.researched and event.research.level) or (event.research.level - 1)
+    if config.announce_completed and config.no_announce_this_tick ~= game.tick then
+        if config.last_research_finish_tick == game.tick then
+            config.no_announce_this_tick = game.tick
+            force.print{"auto_research.announce_multiple_completed"}
+        else
+            local level = ""
+            if event.research.research_unit_count_formula then
+                level = (event.research.researched and event.research.level) or (event.research.level - 1)
+            end
+            force.print{"auto_research.announce_completed", event.research.localised_name, level}
         end
-        force.print{"auto_research.announce_completed", event.research.localised_name, level}
     end
 
     startNextResearch(event.research.force)
