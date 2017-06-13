@@ -1,4 +1,4 @@
-function getConfig(force, rescan_allowed_ingredients)
+function getConfig(force, config_changed)
     if not global.auto_research_config then
         global.auto_research_config = {}
 
@@ -24,7 +24,7 @@ function getConfig(force, rescan_allowed_ingredients)
         -- Print researched technology
         setAnnounceCompletedResearch(force, true)
     end
-    if not global.auto_research_config[force.name].allowed_ingredients or rescan_allowed_ingredients then
+    if config_changed or not global.auto_research_config[force.name].allowed_ingredients or not global.auto_research_config[force.name].infinite_research then
         -- remember any old ingredients
         local old_ingredients = {}
         if global.auto_research_config[force.name].allowed_ingredients then
@@ -33,11 +33,25 @@ function getConfig(force, rescan_allowed_ingredients)
             end
         end
         -- find all possible tech ingredients
+        -- also scan for research that are infinite. tech that have no successor and tech.research_unit_count_formula is not nil
         global.auto_research_config[force.name].allowed_ingredients = {}
+        global.auto_research_config[force.name].infinite_research = {}
+        local finite_research = {}
         for _, tech in pairs(force.technologies) do
             for _, ingredient in pairs(tech.research_unit_ingredients) do
                 global.auto_research_config[force.name].allowed_ingredients[ingredient.name] = (old_ingredients[ingredient.name] == nil or old_ingredients[ingredient.name])
             end
+            if tech.research_unit_count_formula then
+                global.auto_research_config[force.name].infinite_research[tech.name] = tech
+            end
+            for _, pretech in pairs(tech.prerequisites) do
+                if pretech.enabled and not pretech.researched then
+                    finite_research[pretech.name] = true
+                end
+            end
+        end
+        for techname, _ in pairs(finite_research) do
+            global.auto_research_config[force.name].infinite_research[techname] = nil
         end
     end
     return global.auto_research_config[force.name]
@@ -79,6 +93,16 @@ function setAnnounceCompletedResearch(force, enabled)
         return
     end
     getConfig(force).announce_completed = enabled
+end
+
+function setDeprioritizeInfiniteTech(force, enabled)
+    if not force then
+        return
+    end
+    getConfig(force).deprioritize_infinite_tech = enabled
+
+    -- start new research
+    startNextResearch(force)
 end
 
 function getPretechs(tech)
@@ -131,7 +155,7 @@ function startNextResearch(force)
         for _, ingredient in pairs(tech.research_unit_ingredients) do
             tech_ingredients = tech_ingredients + ingredient.amount
         end
-        return tech.research_unit_count * tech.research_unit_energy * tech_ingredients
+        return tech.research_unit_count * tech.research_unit_energy * tech_ingredients * ((config.deprioritize_infinite_tech and config.infinite_research[tech.name] and 1000) or 1)
     end
 
     -- see if there are some techs we should research first
@@ -154,10 +178,12 @@ function startNextResearch(force)
     -- if no queued tech should be researched then research the "least effort" tech not researched yet
     if not config.prioritized_only and not next_research then
         for techname, tech in pairs(force.technologies) do
-            local effort = calcEffort(tech)
-            if (not least_effort or effort < least_effort) and canResearch(force, tech, config) then
-                next_research = techname
-                least_effort = effort
+            if tech.enabled and not tech.researched then
+                local effort = calcEffort(tech)
+                if (not least_effort or effort < least_effort) and canResearch(force, tech, config) then
+                    next_research = techname
+                    least_effort = effort
+                end
             end
         end
     end
@@ -224,6 +250,7 @@ gui = {
             frameflow.add{type = "checkbox", name = "auto_research_queued_only", caption = {"auto_research_gui.prioritized_only"}, tooltip = {"auto_research_gui.prioritized_only_tooltip"}, state = config.prioritized_only or false}
             frameflow.add{type = "checkbox", name = "auto_research_allow_switching", caption = {"auto_research_gui.allow_switching"}, tooltip = {"auto_research_gui.allow_switching_tooltip"}, state = config.allow_switching or false}
             frameflow.add{type = "checkbox", name = "auto_research_announce_completed", caption = {"auto_research_gui.announce_completed"}, tooltip = {"auto_research_gui.announce_completed_tooltip"}, state = config.announce_completed or false}
+            frameflow.add{type = "checkbox", name = "auto_research_deprioritize_infinite_tech", caption = {"auto_research_gui.deprioritize_infinite_tech"}, tooltip = {"auto_research_gui.deprioritize_infinite_tech_tooltip"}, state = config.deprioritize_infinite_tech or false}
 
             -- allowed ingredients
             frameflow.add{
@@ -318,6 +345,8 @@ gui = {
             setAllowSwitching(force, event.element.state)
         elseif name == "auto_research_announce_completed" then
             setAnnounceCompletedResearch(force, event.element.state)
+        elseif name == "auto_research_deprioritize_infinite_tech" then
+            setDeprioritizeInfiniteTech(force, event.element.state)
         else
             local prefix, name = string.match(name, "^auto_research_([^-]*)-(.*)$")
             if prefix == "allow_ingredient" then
@@ -500,5 +529,6 @@ remote.add_interface("auto_research", {
     enabled = setAutoResearch,
     queued_only = setQueuedOnly,
     allow_switching = setAllowSwitching,
-    announce_completed = setAnnounceCompletedResearch
+    announce_completed = setAnnounceCompletedResearch,
+    deprioritize_infinite_tech = setDeprioritizeInfiniteTech
 })
