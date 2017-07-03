@@ -33,7 +33,7 @@ function getConfig(force, config_changed)
             end
         end
         -- find all possible tech ingredients
-        -- also scan for research that are infinite. tech that have no successor and tech.research_unit_count_formula is not nil
+        -- also scan for research that are infinite: techs that have no successor and tech.research_unit_count_formula is not nil
         global.auto_research_config[force.name].allowed_ingredients = {}
         global.auto_research_config[force.name].infinite_research = {}
         local finite_research = {}
@@ -282,7 +282,7 @@ gui = {
             prioritized.style.bottom_padding = 5
             prioritized.style.maximal_height = 192
             -- draw prioritized tech list
-            gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.prioritized, config.prioritized_techs, player)
+            gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.prioritized, config.prioritized_techs, player, true)
 
             -- deprioritized techs
             frameflow.add{
@@ -381,7 +381,7 @@ gui = {
                     -- add tech to list of deprioritized techs
                     table.insert(config.deprioritized_techs, name)
                 end
-                gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.prioritized, config.prioritized_techs, player)
+                gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.prioritized, config.prioritized_techs, player, true)
                 gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.deprioritized, config.deprioritized_techs, player)
 
                 -- start new research
@@ -417,7 +417,7 @@ gui = {
         end
     end,
 
-    updateTechnologyList = function(scrollpane, technologies, player)
+    updateTechnologyList = function(scrollpane, technologies, player, show_queue_buttons)
         if scrollpane.flow then
             scrollpane.flow.destroy()
         end
@@ -432,6 +432,10 @@ gui = {
                 local tech = player.force.technologies[techname]
                 if tech then
                     local entryflow = flow.add{type = "flow", style = "auto_research_tech_flow", direction = "horizontal"}
+                    if show_queue_buttons then
+                        entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "auto_research_queue_top-" .. techname, sprite = "auto_research_prioritize_top"}
+                        entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "auto_research_queue_bottom-" .. techname, sprite = "auto_research_prioritize_bottom"}
+                    end
                     entryflow.add{type = "sprite-button", style = "auto_research_sprite_button", name = "auto_research_delete-" .. techname, sprite = "auto_research_delete"}
                     entryflow.add{type = "label", style = "auto_research_tech_label", caption = tech.localised_name}
                     for _, ingredient in pairs(tech.research_unit_ingredients) do
