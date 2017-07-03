@@ -305,6 +305,7 @@ gui = {
             -- search for techs
             local searchflow = frameflow.add{
                 type = "flow",
+                name = "searchflow",
                 style = "auto_research_tech_flow",
                 direction = "horizontal"
             }
@@ -347,6 +348,10 @@ gui = {
             setAnnounceCompletedResearch(force, event.element.state)
         elseif name == "auto_research_deprioritize_infinite_tech" then
             setDeprioritizeInfiniteTech(force, event.element.state)
+        elseif name == "auto_research_search_text" then
+            if event.button == defines.mouse_button_type.right then
+                player.gui.top.auto_research_gui.flow.searchflow.auto_research_search_text.text = ""
+            end
         else
             local prefix, name = string.match(name, "^auto_research_([^-]*)-(.*)$")
             if prefix == "allow_ingredient" then

@@ -5,7 +5,6 @@ function forceConfig(forcename)
 end
 
 script.on_event(defines.events.on_player_created, function(event)
-    -- TODO: setup player & force config properly
     if not global.brave_new_world then
         global.brave_new_world = {
             players = {},
@@ -26,8 +25,6 @@ script.on_event(defines.events.on_player_created, function(event)
     end
     player.force.manual_mining_speed_modifier = -0.99999999 -- allows removing ghosts with right-click
     player.force.manual_crafting_speed_modifier = -1
-    player.insert{name = "blueprint", count = 1}
-    player.insert{name = "deconstruction-planner", count = 1}
 
     local config = forceConfig(force.name)
 
@@ -40,7 +37,7 @@ script.on_event(defines.events.on_player_created, function(event)
     local yy = math.random(32, 64) * (math.random(1, 2) == 1 and 1 or -1)
     local surface = player.surface
     local tiles = {}
-    surface.create_entity{name = "crude-oil", amount = math.random(8000, 16000), position = {xx, yy}}
+    surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xx, yy}}
     for xxx = xx - 2, xx + 2 do
         for yyy = yy - 2, yy + 2 do
             table.insert(tiles, {name = "grass-dry", position = {xxx, yyy}})
@@ -53,7 +50,7 @@ script.on_event(defines.events.on_player_created, function(event)
             table.insert(tiles, {name = "grass-dry", position = {xxxx, yyyy}})
         end
     end
-    surface.create_entity{name = "crude-oil", amount = math.random(10000, 25000), position = {xxx, yyy}}
+    surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xxx, yyy}}
     xxx = xx + math.random(-8, 8)
     yyy = yy + math.random(4, 8)
     for xxxx = xxx - 2, xxx + 2 do
@@ -61,7 +58,7 @@ script.on_event(defines.events.on_player_created, function(event)
             table.insert(tiles, {name = "grass-dry", position = {xxxx, yyyy}})
         end
     end
-    surface.create_entity{name = "crude-oil", amount = math.random(10000, 25000), position = {xxx, yyy}}
+    surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xxx, yyy}}
     surface.set_tiles(tiles)
 
     -- setup exploration boundary
@@ -119,7 +116,7 @@ script.on_event(defines.events.on_player_created, function(event)
     chest_inventory.insert{name = "offshore-pump", count = 2}
     chest_inventory.insert{name = "pipe", count = 50}
     chest_inventory.insert{name = "pipe-to-ground", count = 10}
-    chest_inventory.insert{name = "boiler", count = 7}
+    chest_inventory.insert{name = "boiler", count = 3}
     chest_inventory.insert{name = "steam-engine", count = 5}
     chest_inventory.insert{name = "assembling-machine-3", count = 6}
     chest_inventory.insert{name = "electric-mining-drill", count = 6}
@@ -161,9 +158,6 @@ script.on_event(defines.events.on_built_entity, function(event)
     local entity = event.created_entity
     if entity.name == "entity-ghost" then
         -- do nothing when placing ghosts
-        return
-    elseif entity.name == "straight-rail" or entity.name == "curved-rail" then
-        -- rail laying is a bit annoying. ghosting often won't work, so just allow it
         return
     elseif entity.type == "locomotive" or entity.type == "cargo-wagon" or entity.type == "car" then
         -- can't ghost locomotives/wagons/cars either
@@ -267,6 +261,7 @@ end
 
 script.on_event(defines.events.on_player_main_inventory_changed, inventoryChanged)
 script.on_event(defines.events.on_player_quickbar_inventory_changed, inventoryChanged)
+
 script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
     local player = game.players[event.player_index]
     local cursor = player.cursor_stack
@@ -294,32 +289,6 @@ script.on_event(defines.events.on_entity_died, function(event)
     if entity.force.name == event.force.name then
         -- deconstructing entities is considered as the entity dying, we don't want to put it on fire then
         return
-    elseif entity.force.name == "enemy" then
-        local spawn
-        local size, kind = string.match(entity.name, "^([^-]+)-(.+)$")
-        if math.random() > 0.314159 then
-            -- spawn same kind of enemy
-            spawn = entity.name
-        elseif size and kind then
-            -- spawn smaller size of enemy
-            if size == "behemoth" then
-                spawn = "big"
-            elseif size == "big" then
-                spawn = "medium"
-            elseif size == "medium" then
-                spawn = "small"
-            end
-            if spawn then
-                spawn = spawn .. "-" .. kind
-            end
-        end
-        if spawn and game.entity_prototypes[spawn] then
-            -- spawn new alien and give player an alien artifact unless enemy was of small size
-            entity.surface.create_entity{name = spawn, force = entity.force, position = {entity.position.x, entity.position.y}}
-            if size ~= "small" then
-                spillItems(event.force, "alien-artifact", 1)
-            end
-        end
     elseif entity.type ~= "tree" then
         -- when entities dies there's a chance a fire starts at position (depending on entity's fire resistance)
         -- although, let's not set trees on fire when they die. that's kinda mean
@@ -329,7 +298,7 @@ script.on_event(defines.events.on_entity_died, function(event)
         if math.random() > fire_resistance.percent then
             local pos = entity.position
             -- start fire at position
-            entity.surface.create_entity{name = "fire-flame", position = pos}
+            entity.surface.create_entity{name = "fire-flame-on-tree", position = pos}
             -- you know what, let's make fire even more deadly
             local top_left = entity.prototype.collision_box.left_top
             local bottom_right = entity.prototype.collision_box.right_bottom
@@ -343,14 +312,13 @@ script.on_event(defines.events.on_entity_died, function(event)
                 for x = math.floor(top_left.x) - xstep / 2, math.ceil(bottom_right.x) + xstep / 2, xstep do
                     for y = math.floor(top_left.y) - ystep / 2, math.ceil(bottom_right.y) + ystep / 2, ystep do
                         if (x ~= 0 or y ~= 0) and math.random() > (1.0 - (1.0 - fire_resistance.percent) / 2.0) then
-                            entity.surface.create_entity{name = "fire-flame", position = {pos.x + x, pos.y + y}}
+                            entity.surface.create_entity{name = "fire-flame-on-tree", position = {pos.x + x, pos.y + y}}
                         end
                     end
                 end
             end
         end
         -- check if roboport, radar or spill chest was destroyed
-        -- TODO: maybe there's an easier way?
         local config = forceConfig(entity.force.name)
         local lose = false
         if entity.type == "roboport" then
