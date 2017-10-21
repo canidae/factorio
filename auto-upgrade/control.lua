@@ -1,15 +1,11 @@
-auto_upgrade_config_version = 1
-
 function init()
-    if not global.auto_upgrade or global.auto_upgrade.config_version ~= auto_upgrade_config_version then
-        global.auto_upgrade = {
-            config_version = auto_upgrade_config_version,
-            interval = 32
-        }
+    if not global.auto_upgrade then
+        global.auto_upgrade = {}
     end
     for _, force in pairs(game.forces) do
         if not global.auto_upgrade[force.name] then
             global.auto_upgrade[force.name] = {
+                upgrade_interval = 32,
                 cap_module_level = false,
                 upgrade = {},
                 roboports = {},
@@ -122,8 +118,8 @@ function findNetwork(entity, config)
                 if entity.position.x >= position.x - range and entity.position.x <= position.x + range then
                     if entity.position.y >= position.y - range and entity.position.y <= position.y + range then
                         -- entity within reach of this roboport
-                        if roboport.logistic_network and roboport.logistic_network.available_construction_robots > 9 then
-                            -- and we got available construction robots (checking that we got a few to avoid DUTDUT)
+                        if roboport.logistic_network and roboport.logistic_network.available_construction_robots > 0 then
+                            -- and we got available construction robots
                             return roboport.logistic_network
                         end
                     end
@@ -140,23 +136,8 @@ function upgradeEntityIfNecessary(entity, config)
     if not upgrade then
         return false
     end
-    local player
-    for _, force_player in pairs(entity.force.players) do
-        if force_player.cursor_stack and not force_player.cursor_stack.valid_for_read then
-            player = force_player
-        end
-    end
-    if not player then
-        return false
-    end
     local network = findNetwork(entity, config)
     if not network then
-        return false
-    end
-    local area = {{entity.position.x - 0.5, entity.position.y - 0.5}, {entity.position.x + 0.5, entity.position.y + 0.5}}
-    local proxy = entity.surface.find_entities_filtered{area = area, name = "item-request-proxy"}
-    if proxy[1] ~= nil then
-        -- there's an "item-request-proxy" for this entity, don't attempt to upgrade
         return false
     end
 
@@ -183,43 +164,12 @@ function upgradeEntityIfNecessary(entity, config)
         end
     end
     if replace then
-        replaceEntity(player, entity, upgrade.target or entity.name, best_modules)
+        -- TODO: mark entity for deconstruction, add new entity to config
+        entity.order_deconstruction(entity.force)
+        --replaceEntity(player, entity, upgrade.target or entity.name, best_modules)
+        --function replaceEntity(player, entity, target_prototype, modules)
     end
     return replace
-end
-
-function replaceEntity(player, entity, target_prototype, modules)
-    local force = player.force
-    local position = entity.position
-    local area = {{position.x - 0.5, position.y - 0.5}, {position.x + 0.5, position.y + 0.5}}
-    player.cursor_stack.set_stack{name = "blueprint", count = 1}
-    player.cursor_stack.create_blueprint{surface = entity.surface, force = force, area = area}
-    local blueprint = player.cursor_stack.get_blueprint_entities()
-    blueprint[1].name = target_prototype
-    player.cursor_stack.set_stack{name = "blueprint", count = 1}
-    player.cursor_stack.set_blueprint_entities(blueprint)
-    entity.order_deconstruction(force)
-    player.cursor_stack.build_blueprint{surface = entity.surface, force = force, position = position}
-    player.cursor_stack.clear()
-    -- request modules, if any
-    local new_entity = entity.surface.find_entity("entity-ghost", {position.x, position.y})
-    if modules then
-        new_entity.item_requests = modules
-    end
-    -- reconnect wires
-    if entity.circuit_connection_definitions then
-        for _, connection in pairs(entity.circuit_connection_definitions) do
-            if connection.target_entity.to_be_deconstructed(entity.force) then
-                local ghost_entity = connection.target_entity.surface.find_entity("entity-ghost", {connection.target_entity.position.x, connection.target_entity.position.y})
-                if not ghost_entity or not ghost_entity.valid then
-                    say(force, {"auto_upgrade_messages.reconnect_wire_fail", game.entity_prototypes[target_prototype].localised_name, new_entity.position.x, new_entity.position.y})
-                else
-                    connection.target_entity = ghost_entity
-                end
-            end
-            new_entity.connect_neighbour(connection)
-        end
-    end
 end
 
 function say(to, message)
@@ -253,14 +203,14 @@ gui = {
                 name = "intervalflow",
                 direction = "horizontal"
             }
-            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-0", caption = {"auto_upgrade_gui.disabled"}, tooltip = {"auto_upgrade_gui.disabled_tooltip"}, state = global.auto_upgrade.interval == 0}
-            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-128", caption = "128", tooltip = {"auto_upgrade_gui.interval_tooltip", 128}, state = global.auto_upgrade.interval == 128}
-            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-64", caption = "64", tooltip = {"auto_upgrade_gui.interval_tooltip", 64}, state = global.auto_upgrade.interval == 64}
-            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-32", caption = "32", tooltip = {"auto_upgrade_gui.interval_tooltip", 32}, state = global.auto_upgrade.interval == 32}
-            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-16", caption = "16", tooltip = {"auto_upgrade_gui.interval_tooltip", 16}, state = global.auto_upgrade.interval == 16}
-            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-8", caption = "8", tooltip = {"auto_upgrade_gui.interval_tooltip", 8}, state = global.auto_upgrade.interval == 8}
-            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-4", caption = "4", tooltip = {"auto_upgrade_gui.interval_tooltip", 4}, state = global.auto_upgrade.interval == 4}
-            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-2", caption = "2", tooltip = {"auto_upgrade_gui.interval_tooltip", 2}, state = global.auto_upgrade.interval == 2}
+            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-0", caption = {"auto_upgrade_gui.disabled"}, tooltip = {"auto_upgrade_gui.disabled_tooltip"}, state = config.upgrade_interval == 0}
+            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-2", caption = "2", tooltip = {"auto_upgrade_gui.interval_tooltip", 2}, state = config.upgrade_interval == 2}
+            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-4", caption = "4", tooltip = {"auto_upgrade_gui.interval_tooltip", 4}, state = config.upgrade_interval == 4}
+            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-8", caption = "8", tooltip = {"auto_upgrade_gui.interval_tooltip", 8}, state = config.upgrade_interval == 8}
+            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-16", caption = "16", tooltip = {"auto_upgrade_gui.interval_tooltip", 16}, state = config.upgrade_interval == 16}
+            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-32", caption = "32", tooltip = {"auto_upgrade_gui.interval_tooltip", 32}, state = config.upgrade_interval == 32}
+            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-64", caption = "64", tooltip = {"auto_upgrade_gui.interval_tooltip", 64}, state = config.upgrade_interval == 64}
+            intervalflow.add{type = "radiobutton", name = "auto_upgrade_interval-128", caption = "128", tooltip = {"auto_upgrade_gui.interval_tooltip", 128}, state = config.upgrade_interval == 128}
 
             -- checkboxes
             local first_checkbox = frameflow.add{type = "checkbox", style = "auto_upgrade_checkbox", name = "auto_upgrade_cap_module_level", caption = {"auto_upgrade_gui.cap_module_level"}, tooltip = {"auto_upgrade_gui.cap_module_level_tooltip"}, state = config.cap_module_level or false}
@@ -317,9 +267,9 @@ gui = {
             local prefix, entityname = string.match(name, "^auto_upgrade_([^-]*)-(.*)$")
             if prefix == "interval" then
                 local interval = tonumber(entityname)
-                if interval ~= global.auto_upgrade.interval then
-                    player.gui.top.auto_upgrade_gui.flow.intervalflow["auto_upgrade_" .. prefix .. "-" .. global.auto_upgrade.interval].state = false
-                    global.auto_upgrade.interval = interval
+                if interval ~= config.upgrade_interval then
+                    player.gui.top.auto_upgrade_gui.flow.intervalflow["auto_upgrade_" .. prefix .. "-" .. config.upgrade_interval].state = false
+                    config.upgrade_interval = interval
                     setOnTick()
                 end
             elseif prefix == "delete" then
@@ -423,58 +373,73 @@ gui = {
     end
 }
 
-function setOnTick()
-    local interval = global.auto_upgrade and global.auto_upgrade.interval or 16
-    if interval == 0 then
-        script.on_event(defines.events.on_tick, nil)
-    else
-        script.on_event(defines.events.on_tick, function(event)
-            if game.tick % global.auto_upgrade.interval > 0 then
-                return
-            end
-            for _, force in pairs(game.forces) do
-                local config = getConfig(force)
-                local upgrade_index = config.upgrade_index or 1
-                local valid_upgrade_index = false
-                for _, settings in pairs(config.upgrade) do
-                    upgrade_index = upgrade_index - 1
-                    if upgrade_index == 0 then
-                        valid_upgrade_index = true
-                        settings.index = settings.index - 1
-                        if settings.index < 1 then
-                            settings.index = #settings.entities
-                            config.upgrade_index = (config.upgrade_index or 1) + 1
-                        end
-                        if settings.index > 0 then
-                            local entity = settings.entities[settings.index]
-                            if entity.valid and not entity.to_be_deconstructed(force) then
-                                if upgradeEntityIfNecessary(entity, config) then
-                                    table.remove(settings.entities, settings.index)
-                                end
-                            else
-                                table.remove(settings.entities, settings.index)
-                            end
-                        end
-                    elseif upgrade_index < 0 then
-                        break
-                    end
-                end
-                if not valid_upgrade_index then
-                    config.upgrade_index = 1
-                end
-            end
-        end)
-    end
-end
-
 script.on_init(init)
 script.on_configuration_changed(init)
+script.on_event(defines.events.on_gui_click, gui.onClick)
 script.on_event(defines.events.on_force_created, init)
 script.on_event(defines.events.on_built_entity, onBuiltEntity)
 script.on_event(defines.events.on_robot_built_entity, onBuiltEntity)
-script.on_event(defines.events.on_gui_click, gui.onClick)
-
-setOnTick()
+script.on_event(defines.events.on_robot_pre_mined, function(event)
+    local entity = event.entity
+    local force = entity.force
+    -- create upgraded entity (TODO: only if entity was marked for upgrade)
+    local new_entity = entity.surface.create_entity{
+        name = "TODO",
+        position = entity.position,
+        force = entity.force,
+        direction = entity.direction
+    }
+    -- copy settings
+    new_entity.copy_settings(entity)
+    -- request modules, if any
+    local new_entity = entity.surface.find_entity("entity-ghost", {position.x, position.y})
+    if modules then
+        new_entity.item_requests = modules
+    end
+    -- reconnect wires
+    new_entity.disconnect_neighbour()
+    if entity.circuit_connection_definitions then
+        for _, connection in pairs(entity.circuit_connection_definitions) do
+            new_entity.connect_neighbour(connection)
+        end
+    end
+end)
+script.on_event(defines.events.on_tick, function(event)
+    for _, force in pairs(game.forces) do
+        local config = getConfig(force)
+        if config.upgrade_interval == 0 or game.tick % config.upgrade_interval > 0 then
+            return
+        end
+        local upgrade_index = config.upgrade_index or 1
+        local valid_upgrade_index = false
+        for _, settings in pairs(config.upgrade) do
+            upgrade_index = upgrade_index - 1
+            if upgrade_index == 0 then
+                valid_upgrade_index = true
+                settings.index = settings.index - 1
+                if settings.index < 1 then
+                    settings.index = #settings.entities
+                    config.upgrade_index = (config.upgrade_index or 1) + 1
+                end
+                if settings.index > 0 then
+                    local entity = settings.entities[settings.index]
+                    if entity.valid and not entity.to_be_deconstructed(force) then
+                        if upgradeEntityIfNecessary(entity, config) then
+                            table.remove(settings.entities, settings.index)
+                        end
+                    else
+                        table.remove(settings.entities, settings.index)
+                    end
+                end
+            elseif upgrade_index < 0 then
+                break
+            end
+        end
+        if not valid_upgrade_index then
+            config.upgrade_index = 1
+        end
+    end
+end)
 
 -- keybinding hooks
 script.on_event("auto_upgrade_toggle", function(event)
