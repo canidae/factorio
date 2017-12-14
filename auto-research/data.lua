@@ -1,6 +1,5 @@
 data.raw["gui-style"].default["auto_research_header_label"] = {
     type = "label_style",
-    parent = "label_style",
     font_color = {r = .91764705882352941176, g = .85098039215686274509, b = .67450980392156862745},
     font = "default-large-semibold",
     top_padding = 0,
@@ -10,21 +9,18 @@ data.raw["gui-style"].default["auto_research_header_label"] = {
 }
 
 data.raw["gui-style"].default["auto_research_list_flow"] = {
-    type = "flow_style",
-    parent = "flow_style",
+    type = "vertical_flow_style",
     vertical_spacing = 0
 }
 
 data.raw["gui-style"].default["auto_research_tech_flow"] = {
-    type = "flow_style",
-    parent = "flow_style",
+    type = "horizontal_flow_style",
     horizontal_spacing = 0,
     resize_row_to_width = true
 }
 
 data.raw["gui-style"].default["auto_research_sprite_button"] = {
     type = "button_style",
-    parent = "button_style",
     width = 24,
     height = 24,
     top_padding = 0,
@@ -83,7 +79,6 @@ data.raw["gui-style"].default["auto_research_sprite_button_toggle_pressed"] = {
 
 data.raw["gui-style"].default["auto_research_tech_label"] = {
     type = "label_style",
-    parent = "label_style",
     left_padding = 4,
     right_padding = 4
 }
