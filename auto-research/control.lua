@@ -519,6 +519,7 @@ script.on_event(defines.events.on_force_created, function(event)
     getConfig(event.force) -- triggers initialization of force config
 end)
 script.on_event(defines.events.on_research_finished, onResearchFinished)
+script.on_event(defines.events.on_gui_checked_state_changed, gui.onClick)
 script.on_event(defines.events.on_gui_click, gui.onClick)
 script.on_event(defines.events.on_gui_text_changed, function(event)
     if event.element.name ~= "auto_research_search_text" then
