@@ -535,9 +535,9 @@ end)
 
 -- Add remote interfaces for enabling/disabling Auto Research
 remote.add_interface("auto_research", {
-    enabled = setAutoResearch,
-    queued_only = setQueuedOnly,
-    allow_switching = setAllowSwitching,
-    announce_completed = setAnnounceCompletedResearch,
-    deprioritize_infinite_tech = setDeprioritizeInfiniteTech
+    enabled = function(forcename, value) setAutoResearch(game.forces[forcename], value) end,
+    queued_only = function(forcename, value) setQueuedOnly(game.forces[forcename], value) end,
+    allow_switching = function(forcename, value) setAllowSwitching(game.forces[forcename], value) end,
+    announce_completed = function(forcename, value) setAnnounceCompletedResearch(game.forces[forcename], value) end,
+    deprioritize_infinite_tech = function(forcename, value) setDeprioritizeInfiniteTech(game.forces[forcename], value) end
 })
