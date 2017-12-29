@@ -26,94 +26,6 @@ script.on_event(defines.events.on_player_created, function(event)
     force.manual_mining_speed_modifier = -0.99999999 -- allows removing ghosts with right-click
     force.manual_crafting_speed_modifier = -1
 
-    -- disable technologies only used for characters
-    force.technologies["automobilism"].enabled = false
-    force.technologies["explosive-rocketry"].enabled = false
-    force.technologies["rocket-damage-1"].enabled = false
-    force.technologies["rocket-damage-2"].enabled = false
-    force.technologies["rocket-damage-3"].enabled = false
-    force.technologies["rocket-damage-4"].enabled = false
-    force.technologies["rocket-damage-5"].enabled = false
-    force.technologies["rocket-damage-6"].enabled = false
-    force.technologies["rocket-damage-7"].enabled = false
-    force.technologies["rocket-speed-6"].enabled = false -- need rocket-speed-5 for rocket-silo
-    force.technologies["rocket-speed-7"].enabled = false
-    force.technologies["cannon-shell-damage-1"].enabled = false
-    force.technologies["cannon-shell-damage-2"].enabled = false
-    force.technologies["cannon-shell-damage-3"].enabled = false
-    force.technologies["cannon-shell-damage-4"].enabled = false
-    force.technologies["cannon-shell-damage-5"].enabled = false
-    force.technologies["cannon-shell-damage-6"].enabled = false
-    force.technologies["cannon-shell-speed-1"].enabled = false
-    force.technologies["cannon-shell-speed-2"].enabled = false
-    force.technologies["cannon-shell-speed-3"].enabled = false
-    force.technologies["cannon-shell-speed-4"].enabled = false
-    force.technologies["cannon-shell-speed-5"].enabled = false
-    force.technologies["shotgun-shell-damage-1"].enabled = false
-    force.technologies["shotgun-shell-damage-2"].enabled = false
-    force.technologies["shotgun-shell-damage-3"].enabled = false
-    force.technologies["shotgun-shell-damage-4"].enabled = false
-    force.technologies["shotgun-shell-damage-5"].enabled = false
-    force.technologies["shotgun-shell-damage-6"].enabled = false
-    force.technologies["shotgun-shell-damage-7"].enabled = false
-    force.technologies["shotgun-shell-speed-1"].enabled = false
-    force.technologies["shotgun-shell-speed-2"].enabled = false
-    force.technologies["shotgun-shell-speed-3"].enabled = false
-    force.technologies["shotgun-shell-speed-4"].enabled = false
-    force.technologies["shotgun-shell-speed-5"].enabled = false
-    force.technologies["shotgun-shell-speed-6"].enabled = false
-    force.technologies["heavy-armor"].enabled = false
-    force.technologies["modular-armor"].enabled = false
-    force.technologies["combat-robotics"].enabled = false
-    force.technologies["combat-robotics-2"].enabled = false
-    force.technologies["combat-robotics-3"].enabled = false
-    force.technologies["combat-robot-damage-1"].enabled = false
-    force.technologies["combat-robot-damage-2"].enabled = false
-    force.technologies["combat-robot-damage-3"].enabled = false
-    force.technologies["combat-robot-damage-4"].enabled = false
-    force.technologies["combat-robot-damage-5"].enabled = false
-    force.technologies["combat-robot-damage-6"].enabled = false
-    force.technologies["character-logistic-slots-1"].enabled = false
-    force.technologies["character-logistic-slots-2"].enabled = false
-    force.technologies["character-logistic-slots-3"].enabled = false
-    force.technologies["character-logistic-slots-4"].enabled = false
-    force.technologies["character-logistic-slots-5"].enabled = false
-    force.technologies["character-logistic-slots-6"].enabled = false
-    force.technologies["character-logistic-trash-slots-1"].enabled = false
-    force.technologies["character-logistic-trash-slots-2"].enabled = false
-    force.technologies["auto-character-logistic-trash-slots"].enabled = false
-    force.technologies["energy-shield-equipment"].enabled = false
-    force.technologies["energy-shield-mk2-equipment"].enabled = false
-    force.technologies["battery-equipment"].enabled = false
-    force.technologies["battery-mk2-equipment"].enabled = false
-    force.technologies["solar-panel-equipment"].enabled = false
-    force.technologies["personal-laser-defense-equipment"].enabled = false
-    force.technologies["discharge-defense-equipment"].enabled = false
-    force.technologies["fusion-reactor-equipment"].enabled = false
-    force.technologies["power-armor"].enabled = false
-    force.technologies["power-armor-2"].enabled = false
-    force.technologies["exoskeleton-equipment"].enabled = false
-    force.technologies["night-vision-equipment"].enabled = false
-    force.technologies["personal-roboport-equipment"].enabled = false
-    force.technologies["personal-roboport-equipment-2"].enabled = false
-    force.technologies["follower-robot-count-1"].enabled = false
-    force.technologies["follower-robot-count-2"].enabled = false
-    force.technologies["follower-robot-count-3"].enabled = false
-    force.technologies["follower-robot-count-4"].enabled = false
-    force.technologies["follower-robot-count-5"].enabled = false
-    force.technologies["follower-robot-count-6"].enabled = false
-    force.technologies["follower-robot-count-7"].enabled = false
-    force.technologies["tanks"].enabled = false
-    force.technologies["cluster-grenade"].enabled = false
-    force.technologies["grenade-damage-1"].enabled = false
-    force.technologies["grenade-damage-2"].enabled = false
-    force.technologies["grenade-damage-3"].enabled = false
-    force.technologies["grenade-damage-4"].enabled = false
-    force.technologies["grenade-damage-5"].enabled = false
-    force.technologies["grenade-damage-6"].enabled = false
-    force.technologies["grenade-damage-7"].enabled = false
-    force.technologies["atomic-bomb"].enabled = false
-
     local config = forceConfig(force.name)
 
     -- player/force start location
@@ -128,14 +40,14 @@ script.on_event(defines.events.on_player_created, function(event)
     surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xx, yy}}
     for xxx = xx - 2, xx + 2 do
         for yyy = yy - 2, yy + 2 do
-            table.insert(tiles, {name = "grass-dry", position = {xxx, yyy}})
+            table.insert(tiles, {name = "dirt-3", position = {xxx, yyy}})
         end
     end
     xxx = xx + math.random(-8, 8)
     yyy = yy - math.random(4, 8)
     for xxxx = xxx - 2, xxx + 2 do
         for yyyy = yyy - 2, yyy + 2 do
-            table.insert(tiles, {name = "grass-dry", position = {xxxx, yyyy}})
+            table.insert(tiles, {name = "dirt-3", position = {xxxx, yyyy}})
         end
     end
     surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xxx, yyy}}
@@ -143,7 +55,7 @@ script.on_event(defines.events.on_player_created, function(event)
     yyy = yy + math.random(4, 8)
     for xxxx = xxx - 2, xxx + 2 do
         for yyyy = yyy - 2, yyy + 2 do
-            table.insert(tiles, {name = "grass-dry", position = {xxxx, yyyy}})
+            table.insert(tiles, {name = "dirt-3", position = {xxxx, yyyy}})
         end
     end
     surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xxx, yyy}}
@@ -157,7 +69,7 @@ script.on_event(defines.events.on_player_created, function(event)
     tiles = {}
     for xx = x - 14, x + 13 do
         for yy = y - 9, y + 3 do
-            table.insert(tiles, {name = "grass-dry", position = {xx, yy}})
+            table.insert(tiles, {name = "dirt-3", position = {xx, yy}})
         end
     end
     surface.set_tiles(tiles)
