@@ -342,10 +342,6 @@ end)
 
 script.on_event(defines.events.on_entity_died, function(event)
     local entity = event.entity
-    if entity.force.name == event.force.name then
-        -- deconstructing entities is considered as the entity dying, don't need to check these
-        return
-    end
     -- check if roboport, radar or spill chest was destroyed
     local config = forceConfig(entity.force.name)
     local lose = false
