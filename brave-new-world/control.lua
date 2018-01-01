@@ -170,7 +170,7 @@ script.on_event(defines.events.on_built_entity, function(event)
     if entity.name == "entity-ghost" then
         -- do nothing when placing ghosts
         return
-    elseif entity.type == "locomotive" or entity.type == "cargo-wagon" or entity.type == "fluid-wagon" then
+    elseif entity.type == "locomotive" or entity.type == "cargo-wagon" or entity.type == "fluid-wagon" or entity.type == "artillery-wagon" then
         -- can neither ghost locomotives nor wagons
         return
     elseif entity.name == "logistic-chest-storage" then
@@ -293,11 +293,14 @@ function itemCountAllowed(name, count)
     elseif name == "blueprint" or name == "deconstruction-planner" or name == "blueprint-book" then
         -- these only place ghosts
         return count
-    elseif name == "locomotive" or name == "cargo-wagon" or name == "fluid-wagon" then
+    elseif name == "locomotive" or name == "cargo-wagon" or name == "fluid-wagon" or name == "artillery-wagon" then
         -- locomotives and wagons must be placed manually
         return count
     elseif name == "stone-brick" or name == "concrete" or name == "hazard-concrete" or name == "landfill" then
         -- can be used for paving. primarily esthetic feature, we'll allow this
+        return count
+    elseif name == "cliff-explosives" then
+        -- allow cliff explosives, let the user remove cliffs
         return count
     elseif string.match(name, ".*module.*") then
         -- allow modules
