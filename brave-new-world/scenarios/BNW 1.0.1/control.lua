@@ -302,6 +302,9 @@ function itemCountAllowed(name, count)
     elseif name == "cliff-explosives" then
         -- allow cliff explosives, let the user remove cliffs
         return count
+    elseif name == "droid-selection-tool" then
+        -- let users have the command tool for Robot Army mod (but not the pickup tool)
+        return 1
     elseif string.match(name, ".*module.*") then
         -- allow modules
         return count
