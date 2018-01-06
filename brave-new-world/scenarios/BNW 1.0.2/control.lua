@@ -289,13 +289,16 @@ function itemCountAllowed(name, count)
         return math.min(200, count)
     elseif name == "copper-cable" then
         -- need this for manually connecting poles, but don't want player to manually move stuff around so we'll limit it
-        return math.min(200, count)
+        return math.min(20, count)
     elseif name == "blueprint" or name == "deconstruction-planner" or name == "blueprint-book" then
         -- these only place ghosts
         return count
     elseif name == "locomotive" or name == "cargo-wagon" or name == "fluid-wagon" or name == "artillery-wagon" then
         -- locomotives and wagons must be placed manually
         return count
+    elseif name == "construction-robot" or name == "logistic-robot" then
+        -- disallow carrying robots
+        return 0
     elseif name == "stone-brick" or name == "concrete" or name == "hazard-concrete" or name == "landfill" then
         -- can be used for paving. primarily esthetic feature, we'll allow this
         return count
