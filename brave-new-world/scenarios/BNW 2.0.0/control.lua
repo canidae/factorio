@@ -40,9 +40,6 @@ function inventoryChanged(event)
         if to_remove > 0 then
             local inserted = entity and entity.insert{name = name, count = to_remove} or 0
             local remaining = to_remove - inserted
-            if remaining > 0 then
-                game.print("Items lost: " .. remaining .. " " .. name)
-            end
             if allowed == 0 and not blueprints[name] then
                 replaceWithBlueprint(item.slot)
             end
@@ -85,6 +82,10 @@ function replaceWithBlueprint(item_stack)
     local place_entity = prototype.place_result
     local place_tile = prototype.place_as_tile_result
     item_stack.set_stack{name = "blueprint", count = 1}
+    if not place_entity and not place_tile then
+        item_stack.clear()
+        return
+    end
     if place_entity then
         item_stack.set_blueprint_entities({
             {
@@ -130,13 +131,13 @@ script.on_event(defines.events.on_player_created, function(event)
     if character then
         character.destroy()
     end
-    -- set cheat mode and disable light
-    player.cheat_mode = true
+    -- set disable light
     player.disable_flashlight()
 
     local force = player.force
-    -- prevent mining
+    -- prevent mining and crafting
     force.manual_mining_speed_modifier = -0.99999999 -- allows removing ghosts with right-click
+    force.manual_crafting_speed_modifier = -1
 
     local config = forceConfig(force.name)
 
