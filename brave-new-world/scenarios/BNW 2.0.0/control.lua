@@ -120,17 +120,11 @@ end
 script.on_event(defines.events.on_player_created, function(event)
     if not global.brave_new_world then
         global.brave_new_world = {
-            players = {},
             forces = {}
         }
     end
     local player = game.players[event.player_index]
     local force = player.force
-    if not global.brave_new_world.forces[force.name] then
-        global.brave_new_world.forces[force.name] = {
-            event = {}
-        }
-    end
     local character = player.character
     player.character = nil
     if character then
@@ -196,6 +190,7 @@ script.on_event(defines.events.on_player_created, function(event)
     for _, entity in pairs(entities) do
         entity.destroy()
     end
+
     -- place walls
     for xx = x - 3, x + 2 do
         surface.create_entity{name = "stone-wall", position = {xx, y - 7}, force = force}
