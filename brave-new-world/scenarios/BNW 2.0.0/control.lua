@@ -1,7 +1,3 @@
-function forceConfig(forcename)
-    return global.brave_new_world.forces[forcename]
-end
-
 function inventoryChanged(event)
     local player = game.players[event.player_index]
     -- player is only allowed to carry blueprints and some whitelisted items
@@ -117,37 +113,24 @@ function replaceWithBlueprint(item_stack)
     end
 end
 
-script.on_event(defines.events.on_player_created, function(event)
-    if not global.brave_new_world then
-        global.brave_new_world = {
-            forces = {}
-        }
+function setupForce(force, surface, x, y)
+    if not global.forces then
+        global.forces = {}
     end
-    local player = game.players[event.player_index]
-    local force = player.force
-    local character = player.character
-    player.character = nil
-    if character then
-        character.destroy()
-    end
-    -- set disable light
-    player.disable_flashlight()
-
-    local force = player.force
+    global.forces[force.name] = {}
+    local config = global.forces[force.name]
     -- prevent mining and crafting
     force.manual_mining_speed_modifier = -0.99999999 -- allows removing ghosts with right-click
     force.manual_crafting_speed_modifier = -1
 
-    local config = forceConfig(force.name)
+    -- setup exploration boundary
+    config.explore_boundary = {{x - 96, y - 96}, {x + 96, y + 96}}
+    force.chart(surface, {{x - 192, y - 192}, {x + 192, y + 192}})
 
-    -- force start location
-    local x = 0
-    local y = 0
-
+    -- setup starting location
     -- oil is rare, but mandatory to continue research. add some oil patches near spawn point
     local xx = math.random(32, 64) * (math.random(1, 2) == 1 and 1 or -1)
     local yy = math.random(32, 64) * (math.random(1, 2) == 1 and 1 or -1)
-    local surface = player.surface
     local tiles = {}
     surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xx, yy}}
     for xxx = xx - 2, xx + 2 do
@@ -173,10 +156,11 @@ script.on_event(defines.events.on_player_created, function(event)
     surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xxx, yyy}}
     surface.set_tiles(tiles)
 
-    -- setup exploration boundary
-    config.explore_boundary = {{x - 96, y - 96}, {x + 96, y + 96}}
-    force.chart(surface, {{x - 192, y - 192}, {x + 192, y + 192}})
-
+    -- remove trees/stones/resources
+    local entities = surface.find_entities_filtered{area = {{x - 16, y - 11}, {x + 15, y + 5}}, force = "neutral"}
+    for _, entity in pairs(entities) do
+        entity.destroy()
+    end
     -- place dirt beneath structures
     tiles = {}
     for xx = x - 14, x + 13 do
@@ -185,11 +169,6 @@ script.on_event(defines.events.on_player_created, function(event)
         end
     end
     surface.set_tiles(tiles)
-    -- remove trees/stones/resources
-    local entities = surface.find_entities_filtered{area = {{x - 16, y - 11}, {x + 15, y + 5}}, force = "neutral"}
-    for _, entity in pairs(entities) do
-        entity.destroy()
-    end
 
     -- place walls
     for xx = x - 3, x + 2 do
@@ -276,6 +255,19 @@ script.on_event(defines.events.on_player_created, function(event)
     accumulator.energy = 5000000
     accumulator = surface.create_entity{name = "accumulator", position = {x + 8, y - 2}, force = force}
     accumulator.energy = 5000000
+end
+
+script.on_event(defines.events.on_player_created, function(event)
+    local player = game.players[event.player_index]
+    if player.character then
+        player.character.destroy()
+        player.character = nil
+    end
+    -- disable light
+    player.disable_flashlight()
+
+    -- setup force
+    setupForce(player.force, player.surface, 0, 0)
 end)
 
 script.on_event(defines.events.on_player_main_inventory_changed, inventoryChanged)
@@ -303,7 +295,7 @@ end)
 script.on_event(defines.events.on_entity_died, function(event)
     local entity = event.entity
     -- check if roboport was destroyed
-    local config = forceConfig(entity.force.name)
+    local config = global.forces[entity.force.name]
     if not config.roboport.valid or (entity.position.x == config.roboport.position.x and entity.position.y == config.roboport.position.y) then
         game.set_game_state{game_finished = true, player_won = false, can_continue = false}
     end
@@ -312,7 +304,7 @@ end)
 script.on_event(defines.events.on_sector_scanned, function(event)
     local position = event.chunk_position
     local radar = event.radar
-    local config = forceConfig(radar.force.name)
+    local config = global.forces[radar.force.name]
     local x = ((position.x <= 0 and (position.x + 5)) or (position.x > 0 and (position.x - 5))) * 32
     local y = ((position.y <= 0 and (position.y + 5)) or (position.y > 0 and (position.y - 5))) * 32
     if x < config.explore_boundary[1][1] then
