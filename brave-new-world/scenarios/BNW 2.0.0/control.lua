@@ -81,35 +81,40 @@ function replaceWithBlueprint(item_stack)
     local prototype = item_stack.prototype
     local place_entity = prototype.place_result
     local place_tile = prototype.place_as_tile_result
-    item_stack.set_stack{name = "blueprint", count = 1}
-    if not place_entity and not place_tile then
-        item_stack.clear()
-        return
-    end
-    if place_entity then
-        item_stack.set_blueprint_entities({
+    local setBlueprintEntities = function()
+        item_stack.set_stack{name = "blueprint", count = 1}
+        if place_entity then
+            item_stack.set_blueprint_entities({
+                {
+                    entity_number = 1,
+                    name = place_entity.name,
+                    position = {x = 0, y = 0}
+                }
+            })
+        end
+        if place_tile then
+            item_stack.set_blueprint_tiles({
+                {
+                    name = place_tile.name,
+                    position = {x = 0, y = 0}
+                }
+            })
+        end
+        item_stack.blueprint_icons = {
             {
-                entity_number = 1,
-                name = place_entity.name,
-                position = {x = 0, y = 0}
+                signal = {type = "item", name = prototype.name},
+                index = 1
             }
-        })
-    end
-    if place_tile then
-        item_stack.set_blueprint_tiles({
-            {
-                name = place_tile.name,
-                position = {x = 0, y = 0}
-            }
-        })
-    end
-    item_stack.blueprint_icons = {
-        {
-            signal = {type = "item", name = prototype.name},
-            index = 1
         }
-    }
-    item_stack.label = prototype.name
+        item_stack.label = prototype.name
+    end
+    local status, err = pcall(setBlueprintEntities)
+    if not status then
+        -- this was the easiest way to check if a valid blueprint was made
+        -- (some items produce entities that aren't blueprintable, but there doesn't seem to be a reliable way to detect this)
+        --game.print("Blueprint failed: " .. prototype.name .. " - " .. err)
+        item_stack.clear()
+    end
 end
 
 script.on_event(defines.events.on_player_created, function(event)
@@ -209,18 +214,14 @@ script.on_event(defines.events.on_player_created, function(event)
     roboport_inventory.insert{name = "logistic-robot", count = 50}
     roboport_inventory = config.roboport.get_inventory(defines.inventory.roboport_material)
     roboport_inventory.insert{name = "repair-pack", count = 10}
-    -- radar
-    local radar = surface.create_entity{name = "radar", position = {x - 1, y - 1}, force = force}
-    radar.minable = false
     -- electric pole
-    local electric_pole = surface.create_entity{name = "medium-electric-pole", position = {x + 1, y - 2}, force = force}
-    electric_pole.minable = false
+    local electric_pole = surface.create_entity{name = "medium-electric-pole", position = {x + 1, y}, force = force}
+    -- radar
+    surface.create_entity{name = "radar", position = {x - 1, y - 1}, force = force}
     -- let's build a small lamp to brighten up the night
-    local lamp = surface.create_entity{name = "small-lamp", position = {x + 1, y - 1}, force = force}
-    lamp.minable = false
+    surface.create_entity{name = "inserter", position = {x + 1, y - 2}, direction = defines.direction.south, force = force}
     -- storage chest, contains the items the force starts with
-    local chest = surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y}, force = force}
-    chest.minable = false
+    local chest = surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y - 1}, force = force}
     local chest_inventory = chest.get_inventory(defines.inventory.chest)
     chest_inventory.insert{name = "transport-belt", count = 400}
     chest_inventory.insert{name = "underground-belt", count = 40}
@@ -250,6 +251,7 @@ script.on_event(defines.events.on_player_created, function(event)
     surface.create_entity{name = "solar-panel", position = {x - 5, y - 6}, force = force}
     surface.create_entity{name = "solar-panel", position = {x - 5, y}, force = force}
     surface.create_entity{name = "medium-electric-pole", position = {x - 7, y - 4}, force = force}
+    surface.create_entity{name = "small-lamp", position = {x - 6, y - 4}, force = force}
     local accumulator = surface.create_entity{name = "accumulator", position = {x - 8, y - 6}, force = force}
     accumulator.energy = 5000000
     accumulator = surface.create_entity{name = "accumulator", position = {x - 8, y - 4}, force = force}
@@ -268,6 +270,7 @@ script.on_event(defines.events.on_player_created, function(event)
     surface.create_entity{name = "solar-panel", position = {x + 10, y - 3}, force = force}
     surface.create_entity{name = "solar-panel", position = {x + 10, y}, force = force}
     surface.create_entity{name = "medium-electric-pole", position = {x + 6, y - 4}, force = force}
+    surface.create_entity{name = "small-lamp", position = {x + 5, y - 4}, force = force}
     accumulator = surface.create_entity{name = "accumulator", position = {x + 4, y - 2}, force = force}
     accumulator.energy = 5000000
     accumulator = surface.create_entity{name = "accumulator", position = {x + 6, y - 2}, force = force}
