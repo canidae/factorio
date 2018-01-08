@@ -1,4 +1,7 @@
+local water_replace_tile = "dirt-3"
+
 function inventoryChanged(event)
+    -- TODO: handle items appearing from cheat mode
     local player = game.players[event.player_index]
     -- player is only allowed to carry blueprints and some whitelisted items
     -- everything else goes into entity opened or entity beneath mouse cursor
@@ -9,7 +12,7 @@ function inventoryChanged(event)
         for i = 1, #inventory do
             local item_stack = inventory[i]
             if item_stack and item_stack.valid_for_read then
-                if item_stack.is_blueprint then
+                if item_stack.is_blueprint and item_stack.label then
                     blueprints[item_stack.label] = true
                 else
                     local name = item_stack.name
@@ -36,8 +39,8 @@ function inventoryChanged(event)
         if to_remove > 0 then
             local inserted = entity and entity.insert{name = name, count = to_remove} or 0
             local remaining = to_remove - inserted
-            if allowed == 0 and not blueprints[name] then
-                replaceWithBlueprint(item.slot)
+            if remaining > 0 then
+                spillItems(player.force, name, remaining)
             end
             player.remove_item{name = name, count = to_remove}
         end
@@ -84,7 +87,7 @@ function replaceWithBlueprint(item_stack)
                 {
                     entity_number = 1,
                     name = place_entity.name,
-                    position = {x = 0, y = 0}
+                    position = {x = -0.5, y = -0.5}
                 }
             })
         end
@@ -92,7 +95,7 @@ function replaceWithBlueprint(item_stack)
             item_stack.set_blueprint_tiles({
                 {
                     name = place_tile.name,
-                    position = {x = 0, y = 0}
+                    position = {x = -0.5, y = -0.5}
                 }
             })
         end
@@ -105,11 +108,26 @@ function replaceWithBlueprint(item_stack)
         item_stack.label = prototype.name
     end
     local status, err = pcall(setBlueprintEntities)
+    -- pcall was the easiest way to check if a valid blueprint was made
+    -- (some items produce entities that aren't blueprintable, but there doesn't seem to be a reliable way to detect this)
     if not status then
-        -- this was the easiest way to check if a valid blueprint was made
-        -- (some items produce entities that aren't blueprintable, but there doesn't seem to be a reliable way to detect this)
-        --game.print("Blueprint failed: " .. prototype.name .. " - " .. err)
-        item_stack.clear()
+        game.print("Blueprint failed: " .. prototype.name .. " - " .. err)
+    end
+    return status
+end
+
+function spillItems(force, name, count)
+    local config = global.forces[force.name]
+    local chest = config.spill_chest
+    local inserted = chest.insert{name = name, count = count}
+    local remaining = count - inserted
+    if remaining > 0 then
+        -- chest is full, explode items around chest
+        chest.surface.spill_item_stack(chest.position, {name = name, count = remaining})
+        local spilled = surface.find_entities_filtered{area = {{pos.x - 16, pos.y - 16}, {pos.x + 16, pos.y + 16}}, force = "neutral", type = "item-entity"}
+        for _, item in pairs(spilled) do
+            item.order_deconstruction(force)
+        end
     end
 end
 
@@ -135,14 +153,24 @@ function setupForce(force, surface, x, y)
     surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xx, yy}}
     for xxx = xx - 2, xx + 2 do
         for yyy = yy - 2, yy + 2 do
-            table.insert(tiles, {name = "dirt-3", position = {xxx, yyy}})
+            local tile = surface.get_tile(xxx, yyy)
+            local name = tile.name
+            if tile.prototype.layer <= 4 then
+                name = water_replace_tile
+            end
+            table.insert(tiles, {name = name, position = {xxx, yyy}})
         end
     end
     xxx = xx + math.random(-8, 8)
     yyy = yy - math.random(4, 8)
     for xxxx = xxx - 2, xxx + 2 do
         for yyyy = yyy - 2, yyy + 2 do
-            table.insert(tiles, {name = "dirt-3", position = {xxxx, yyyy}})
+            local tile = surface.get_tile(xxxx, yyyy)
+            local name = tile.name
+            if tile.prototype.layer <= 4 then
+                name = water_replace_tile
+            end
+            table.insert(tiles, {name = name, position = {xxxx, yyyy}})
         end
     end
     surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xxx, yyy}}
@@ -150,7 +178,12 @@ function setupForce(force, surface, x, y)
     yyy = yy + math.random(4, 8)
     for xxxx = xxx - 2, xxx + 2 do
         for yyyy = yyy - 2, yyy + 2 do
-            table.insert(tiles, {name = "dirt-3", position = {xxxx, yyyy}})
+            local tile = surface.get_tile(xxxx, yyyy)
+            local name = tile.name
+            if tile.prototype.layer <= 4 then
+                name = water_replace_tile
+            end
+            table.insert(tiles, {name = name, position = {xxxx, yyyy}})
         end
     end
     surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xxx, yyy}}
@@ -165,7 +198,12 @@ function setupForce(force, surface, x, y)
     tiles = {}
     for xx = x - 14, x + 13 do
         for yy = y - 9, y + 3 do
-            table.insert(tiles, {name = "dirt-3", position = {xx, yy}})
+            local tile = surface.get_tile(xx, yy)
+            local name = tile.name
+            if tile.prototype.layer <= 4 then
+                name = water_replace_tile
+            end
+            table.insert(tiles, {name = name, position = {xx, yy}})
         end
     end
     surface.set_tiles(tiles)
@@ -189,13 +227,14 @@ function setupForce(force, surface, x, y)
     roboport_inventory = config.roboport.get_inventory(defines.inventory.roboport_material)
     roboport_inventory.insert{name = "repair-pack", count = 10}
     -- electric pole
-    local electric_pole = surface.create_entity{name = "medium-electric-pole", position = {x + 1, y}, force = force}
+    local electric_pole = surface.create_entity{name = "medium-electric-pole", position = {x + 1, y - 2}, force = force}
     -- radar
     surface.create_entity{name = "radar", position = {x - 1, y - 1}, force = force}
-    -- let's build a small lamp to brighten up the night
-    surface.create_entity{name = "inserter", position = {x + 1, y - 2}, direction = defines.direction.south, force = force}
+    -- spill chest, items otherwise lost end up here
+    config.spill_chest = surface.create_entity{name = "logistic-chest-active-provider", position = {x + 1, y - 1}, force = force}
+    config.spill_chest.minable = false
     -- storage chest, contains the items the force starts with
-    local chest = surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y - 1}, force = force}
+    local chest = surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y}, force = force}
     local chest_inventory = chest.get_inventory(defines.inventory.chest)
     chest_inventory.insert{name = "transport-belt", count = 400}
     chest_inventory.insert{name = "underground-belt", count = 40}
@@ -265,9 +304,18 @@ script.on_event(defines.events.on_player_created, function(event)
     end
     -- disable light
     player.disable_flashlight()
+    -- enable cheat mode
+    player.cheat_mode = true
 
     -- setup force
     setupForce(player.force, player.surface, 0, 0)
+end)
+
+script.on_event(defines.events.on_player_pipette, function(event)
+    local player = game.players[event.player_index]
+    if not replaceWithBlueprint(player.cursor_stack) then
+        player.cursor_stack.clear()
+    end
 end)
 
 script.on_event(defines.events.on_player_main_inventory_changed, inventoryChanged)
@@ -286,7 +334,9 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
             if count_remaining > 0 then
                 cursor.count = count_remaining
             else
-                replaceWithBlueprint(cursor)
+                if not replaceWithBlueprint(cursor) then
+                    item_stack.clear()
+                end
             end
         end
     end
@@ -296,7 +346,7 @@ script.on_event(defines.events.on_entity_died, function(event)
     local entity = event.entity
     -- check if roboport was destroyed
     local config = global.forces[entity.force.name]
-    if not config.roboport.valid or (entity.position.x == config.roboport.position.x and entity.position.y == config.roboport.position.y) then
+    if config and (entity == config.robport or entity == config.spill_chest) then
         game.set_game_state{game_finished = true, player_won = false, can_continue = false}
     end
 end)
