@@ -1,11 +1,24 @@
 local water_replace_tile = "dirt-3"
 
 function inventoryChanged(event)
-    -- TODO: handle items appearing from cheat mode
     local player = game.players[event.player_index]
+    -- remove any crafted items (and possibly make blueprint of item on cursor)
+    for _, stack in pairs(global.players[event.player_index].crafted) do
+        if itemCountAllowed(stack.name, stack.count) == 0 then
+            -- not allowed to carry item, but can we make a blueprint of it?
+            if player.clean_cursor() then
+                player.cursor_stack.set_stack(stack)
+                if not replaceWithBlueprint(player.cursor_stack) then
+                    player.cursor_stack.clear()
+                end
+            end
+        end
+        player.remove_item{name = stack.name, count = stack.count}
+    end
+    global.players[event.player_index].crafted = {}
+
     -- player is only allowed to carry blueprints and some whitelisted items
     -- everything else goes into entity opened or entity beneath mouse cursor
-    local entity = player.selected or player.opened
     local inventory_main = player.get_inventory(defines.inventory.god_main)
     local inventory_bar = player.get_inventory(defines.inventory.god_quickbar)
     local scanInventory = function(inventory, blueprints, items)
@@ -13,7 +26,12 @@ function inventoryChanged(event)
             local item_stack = inventory[i]
             if item_stack and item_stack.valid_for_read then
                 if item_stack.is_blueprint and item_stack.label then
-                    blueprints[item_stack.label] = true
+                    if blueprints[item_stack.label] then
+                        -- duplicate blueprint, remove it
+                        item_stack.clear()
+                    else
+                        blueprints[item_stack.label] = true
+                    end
                 else
                     local name = item_stack.name
                     if items[name] then
@@ -37,8 +55,14 @@ function inventoryChanged(event)
         local allowed = itemCountAllowed(name, item.count)
         local to_remove = item.count - allowed
         if to_remove > 0 then
+            local entity = player.selected or player.opened
             local inserted = entity and entity.insert{name = name, count = to_remove} or 0
             local remaining = to_remove - inserted
+            if allowed == 0 and not blueprints[name] then
+                if not replaceWithBlueprint(item.slot) then
+                    item.slot.clear()
+                end
+            end
             if remaining > 0 then
                 spillItems(player.force, name, remaining)
             end
@@ -83,19 +107,21 @@ function replaceWithBlueprint(item_stack)
     local setBlueprintEntities = function()
         item_stack.set_stack{name = "blueprint", count = 1}
         if place_entity then
+            local x = (math.ceil(place_entity.selection_box.right_bottom.x * 2) % 2) / 2 - 0.5
+            local y = (math.ceil(place_entity.selection_box.right_bottom.y * 2) % 2) / 2 - 0.5
             item_stack.set_blueprint_entities({
                 {
                     entity_number = 1,
                     name = place_entity.name,
-                    position = {x = -0.5, y = -0.5}
+                    position = {x = x, y = y}
                 }
             })
         end
         if place_tile then
             item_stack.set_blueprint_tiles({
                 {
-                    name = place_tile.name,
-                    position = {x = -0.5, y = -0.5}
+                    name = place_tile.result.name,
+                    position = {x = 0, y = 0}
                 }
             })
         end
@@ -158,7 +184,7 @@ function setupForce(force, surface, x, y)
             if tile.prototype.layer <= 4 then
                 name = water_replace_tile
             end
-            table.insert(tiles, {name = name, position = {xxx, yyy}})
+            tiles[#tiles + 1] = {name = name, position = {xxx, yyy}}
         end
     end
     xxx = xx + math.random(-8, 8)
@@ -170,7 +196,7 @@ function setupForce(force, surface, x, y)
             if tile.prototype.layer <= 4 then
                 name = water_replace_tile
             end
-            table.insert(tiles, {name = name, position = {xxxx, yyyy}})
+            tiles[#tiles + 1] = {name = name, position = {xxxx, yyyy}}
         end
     end
     surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xxx, yyy}}
@@ -183,7 +209,7 @@ function setupForce(force, surface, x, y)
             if tile.prototype.layer <= 4 then
                 name = water_replace_tile
             end
-            table.insert(tiles, {name = name, position = {xxxx, yyyy}})
+            tiles[#tiles + 1] = {name = name, position = {xxxx, yyyy}}
         end
     end
     surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xxx, yyy}}
@@ -203,7 +229,7 @@ function setupForce(force, surface, x, y)
             if tile.prototype.layer <= 4 then
                 name = water_replace_tile
             end
-            table.insert(tiles, {name = name, position = {xx, yy}})
+            tiles[#tiles + 1] = {name = name, position = {xx, yy}}
         end
     end
     surface.set_tiles(tiles)
@@ -297,6 +323,12 @@ function setupForce(force, surface, x, y)
 end
 
 script.on_event(defines.events.on_player_created, function(event)
+    if not global.players then
+        global.players = {}
+    end
+    global.players[event.player_index] = {
+        crafted = {}
+    }
     local player = game.players[event.player_index]
     if player.character then
         player.character.destroy()
@@ -309,6 +341,11 @@ script.on_event(defines.events.on_player_created, function(event)
 
     -- setup force
     setupForce(player.force, player.surface, 0, 0)
+end)
+
+script.on_event(defines.events.on_player_crafted_item, function(event)
+    local crafted = global.players[event.player_index].crafted
+    crafted[#crafted + 1] = event.item_stack
 end)
 
 script.on_event(defines.events.on_player_pipette, function(event)
@@ -335,7 +372,7 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
                 cursor.count = count_remaining
             else
                 if not replaceWithBlueprint(cursor) then
-                    item_stack.clear()
+                    cursor.clear()
                 end
             end
         end
