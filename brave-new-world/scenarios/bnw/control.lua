@@ -146,18 +146,14 @@ function replaceWithBlueprint(item_stack, direction)
     return pcall(setBlueprintEntities)
 end
 
-function spillItems(player, name, count, explode_items)
+function spillItems(player, name, count)
     local config = global.forces[player.force.name]
     local roboport = config.roboport
-    local remaining = (explode_items and count) or (count - roboport.logistic_network.insert{name = name, count = count})
+    local remaining = count - roboport.logistic_network.insert{name = name, count = count}
     if remaining > 0 then
         -- network storage is full, explode items around roboport
+        game.print({"out-of-storage"})
         roboport.surface.spill_item_stack(roboport.position, {name = name, count = remaining})
-        local pos = roboport.position
-        local spilled = player.surface.find_entities_filtered{area = {{pos.x - 64, pos.y - 64}, {pos.x + 64, pos.y + 64}}, force = "neutral", type = "item-entity"}
-        for _, item in pairs(spilled) do
-            item.order_deconstruction(player.force)
-        end
     end
 end
 
@@ -388,6 +384,29 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
                 end
             end
         end
+    end
+    -- check if user is in trouble due to insufficient storage
+    local alerts = player.get_alerts{type = defines.alert_type.no_storage}
+    local out_of_storage = false
+    for _, surface in pairs(alerts) do
+        for _, alert_type in pairs(surface) do
+            for _, alert in pairs(alert_type) do
+                local entity = alert.target
+                if entity.name == "construction-robot" then
+                    out_of_storage = true
+                    local inventory = entity.get_inventory(defines.inventory.robot_cargo)
+                    if inventory then
+                        for name, count in pairs(inventory.get_contents()) do
+                            entity.surface.spill_item_stack(entity.position, {name = name, count = count})
+                        end
+                    end
+                    entity.clear_items_inside()
+                end
+            end
+        end
+    end
+    if out_of_storage then
+        game.print({"out-of-storage"})
     end
 end)
 
