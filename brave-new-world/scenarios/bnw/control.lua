@@ -148,12 +148,12 @@ end
 
 function spillItems(force, name, count)
     local config = global.forces[force.name]
-    local chest = config.spill_chest
-    local inserted = chest.insert{name = name, count = count}
+    local roboport = config.roboport
+    local inserted = roboport.logistic_network.insert{name = name, count = count}
     local remaining = count - inserted
     if remaining > 0 then
-        -- chest is full, explode items around chest
-        chest.surface.spill_item_stack(chest.position, {name = name, count = remaining})
+        -- network storage is full, explode items around roboport
+        roboport.surface.spill_item_stack(roboport.position, {name = name, count = remaining})
         local spilled = surface.find_entities_filtered{area = {{pos.x - 16, pos.y - 16}, {pos.x + 16, pos.y + 16}}, force = "neutral", type = "item-entity"}
         for _, item in pairs(spilled) do
             item.order_deconstruction(force)
@@ -260,9 +260,8 @@ function setupForce(force, surface, x, y)
     local electric_pole = surface.create_entity{name = "medium-electric-pole", position = {x + 1, y - 2}, force = force}
     -- radar
     surface.create_entity{name = "radar", position = {x - 1, y - 1}, force = force}
-    -- spill chest, items otherwise lost end up here
-    config.spill_chest = surface.create_entity{name = "logistic-chest-active-provider", position = {x + 1, y - 1}, force = force}
-    config.spill_chest.minable = false
+    -- storage chest
+    surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y - 1}, force = force}
     -- storage chest, contains the items the force starts with
     local chest = surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y}, force = force}
     local chest_inventory = chest.get_inventory(defines.inventory.chest)
@@ -396,7 +395,7 @@ script.on_event(defines.events.on_entity_died, function(event)
     local entity = event.entity
     -- check if roboport was destroyed
     local config = global.forces[entity.force.name]
-    if config and (entity == config.robport or entity == config.spill_chest) then
+    if entity == config.robport then
         game.set_game_state{game_finished = true, player_won = false, can_continue = false}
     end
 end)
