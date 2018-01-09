@@ -90,6 +90,9 @@ function itemCountAllowed(name, count)
     elseif name == "landfill" or name == "cliff-explosives" then
         -- let users fill in water and remove cliffs
         return count
+    elseif name == "artillery-targeting-remote" then
+        -- let users use the artillery targeting remote
+        return count
     elseif name == "droid-selection-tool" then
         -- let users have the command tool for Robot Army mod (but not the pickup tool)
         return count
