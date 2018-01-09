@@ -93,6 +93,7 @@ function itemCountAllowed(name, count)
     elseif name == "droid-selection-tool" then
         -- let users have the command tool for Robot Army mod (but not the pickup tool)
         return 1
+    -- TODO: klonan upgrade tool
     elseif string.match(name, ".*module.*") then
         -- allow modules
         return count
@@ -100,7 +101,7 @@ function itemCountAllowed(name, count)
     return 0
 end
 
-function replaceWithBlueprint(item_stack)
+function replaceWithBlueprint(item_stack, direction)
     local prototype = item_stack.prototype
     local place_entity = prototype.place_result
     local place_tile = prototype.place_as_tile_result
@@ -113,6 +114,7 @@ function replaceWithBlueprint(item_stack)
                 {
                     entity_number = 1,
                     name = place_entity.name,
+                    direction = direction,
                     position = {x = x, y = y}
                 }
             })
@@ -350,7 +352,7 @@ end)
 
 script.on_event(defines.events.on_player_pipette, function(event)
     local player = game.players[event.player_index]
-    if not replaceWithBlueprint(player.cursor_stack) then
+    if not replaceWithBlueprint(player.cursor_stack, (player.selected and player.selected.direction) or nil) then
         player.cursor_stack.clear()
     end
 end)
