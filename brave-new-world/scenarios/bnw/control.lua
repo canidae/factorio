@@ -50,6 +50,7 @@ function inventoryChanged(event)
     local items = {}
     scanInventory(inventory_bar, blueprints, items)
     scanInventory(inventory_main, blueprints, items)
+    global.players[event.player_index].inventory_items = items
 
     for name, item in pairs(items) do
         local allowed = itemCountAllowed(name, item.count)
@@ -83,6 +84,9 @@ function itemCountAllowed(name, count)
         return count
     elseif name == "locomotive" or name == "cargo-wagon" or name == "fluid-wagon" or name == "artillery-wagon" then
         -- locomotives and wagons must be placed manually
+        return count
+    elseif name == "rail" or name == "train-stop" or name == "rail-signal" or name == "rail-chain-signal" then
+        -- rails can't be built with only blueprints, must allow these items
         return count
     elseif name == "car" or name == "tank" then
         -- let users put down cars & tanks
@@ -327,7 +331,8 @@ script.on_event(defines.events.on_player_created, function(event)
         global.players = {}
     end
     global.players[event.player_index] = {
-        crafted = {}
+        crafted = {},
+        inventory_items = {}
     }
     local player = game.players[event.player_index]
     if player.character then
@@ -350,8 +355,16 @@ end)
 
 script.on_event(defines.events.on_player_pipette, function(event)
     local player = game.players[event.player_index]
-    if not replaceWithBlueprint(player.cursor_stack, (player.selected and player.selected.direction) or nil) then
-        player.cursor_stack.clear()
+    local name = player.cursor_stack.name
+    if name == "rail" or name == "train-stop" or name == "rail-signal" or name == "rail-chain-signal" then
+        -- rail entities may be carried, but only allow pipetting if player got item in inventory
+        if not global.players[event.player_index].inventory_items[name] then
+            player.cursor_stack.clear()
+        end
+    else
+        if not replaceWithBlueprint(player.cursor_stack, (player.selected and player.selected.direction) or nil) then
+            player.cursor_stack.clear()
+        end
     end
 end)
 
