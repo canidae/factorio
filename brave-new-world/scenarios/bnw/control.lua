@@ -56,7 +56,7 @@ function inventoryChanged(event)
         local to_remove = item.count - allowed
         if to_remove > 0 then
             local entity = player.selected or player.opened
-            local inserted = entity and entity.insert{name = name, count = to_remove} or 0
+            local inserted = entity and entity.insert and entity.insert{name = name, count = to_remove} or 0
             local remaining = to_remove - inserted
             if allowed == 0 and not blueprints[name] then
                 if not replaceWithBlueprint(item.slot) then
@@ -92,8 +92,7 @@ function itemCountAllowed(name, count)
         return count
     elseif name == "droid-selection-tool" then
         -- let users have the command tool for Robot Army mod (but not the pickup tool)
-        return 1
-    -- TODO: klonan upgrade tool
+        return count
     elseif string.match(name, ".*module.*") then
         -- allow modules
         return count
@@ -135,13 +134,9 @@ function replaceWithBlueprint(item_stack, direction)
         }
         item_stack.label = prototype.name
     end
-    local status, err = pcall(setBlueprintEntities)
     -- pcall was the easiest way to check if a valid blueprint was made
     -- (some items produce entities that aren't blueprintable, but there doesn't seem to be a reliable way to detect this)
-    if not status then
-        game.print("Blueprint failed: " .. prototype.name .. " - " .. err)
-    end
-    return status
+    return pcall(setBlueprintEntities)
 end
 
 function spillItems(force, name, count)
@@ -368,7 +363,7 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
         local to_remove = cursor.count - count_remaining
         if to_remove > 0 then
             local entity = player.opened or player.selected
-            local inserted = entity and entity.insert{name = cursor.name, count = to_remove} or 0
+            local inserted = entity and entity.insert and entity.insert{name = cursor.name, count = to_remove} or 0
             local remaining = to_remove - inserted
             if count_remaining > 0 then
                 cursor.count = count_remaining
