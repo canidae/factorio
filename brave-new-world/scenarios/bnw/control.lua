@@ -65,7 +65,7 @@ function inventoryChanged(event)
                 end
             end
             if remaining > 0 then
-                spillItems(player.force, name, remaining)
+                spillItems(player, name, remaining)
             end
             player.remove_item{name = name, count = to_remove}
         end
@@ -146,17 +146,17 @@ function replaceWithBlueprint(item_stack, direction)
     return pcall(setBlueprintEntities)
 end
 
-function spillItems(force, name, count)
-    local config = global.forces[force.name]
+function spillItems(player, name, count, explode_items)
+    local config = global.forces[player.force.name]
     local roboport = config.roboport
-    local inserted = roboport.logistic_network.insert{name = name, count = count}
-    local remaining = count - inserted
+    local remaining = (explode_items and count) or (count - roboport.logistic_network.insert{name = name, count = count})
     if remaining > 0 then
         -- network storage is full, explode items around roboport
         roboport.surface.spill_item_stack(roboport.position, {name = name, count = remaining})
-        local spilled = surface.find_entities_filtered{area = {{pos.x - 16, pos.y - 16}, {pos.x + 16, pos.y + 16}}, force = "neutral", type = "item-entity"}
+        local pos = roboport.position
+        local spilled = player.surface.find_entities_filtered{area = {{pos.x - 64, pos.y - 64}, {pos.x + 64, pos.y + 64}}, force = "neutral", type = "item-entity"}
         for _, item in pairs(spilled) do
-            item.order_deconstruction(force)
+            item.order_deconstruction(player.force)
         end
     end
 end
