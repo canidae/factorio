@@ -65,7 +65,7 @@ function inventoryChanged(event)
                 end
             end
             if remaining > 0 then
-                spillItems(entity or global.forces[player.force.name].roboport, name, remaining)
+                spillItems((entity and entity.logistic_network and entity) or global.forces[player.force.name].roboport, name, remaining)
             end
             player.remove_item{name = name, count = to_remove}
         end
@@ -385,7 +385,19 @@ script.on_event(defines.events.on_built_entity, function(event)
         convertToGhost(player, last_entity)
         global.players[event.player_index].last_built_entity = nil
     end
-    if entity.type ~= "entity-ghost" then
+    -- if entity can be blueprinted then set last_built_entity and put item back on cursor
+    local prev_cursor = nil
+    if player.cursor_stack and player.cursor_stack.valid_for_read then
+        prev_cursor = {name = player.cursor_stack.name, count = player.cursor_stack.count}
+    end
+    player.cursor_stack.set_stack(event.stack)
+    local blueprintable = replaceWithBlueprint(player.cursor_stack)
+    if prev_cursor then
+        player.cursor_stack.set_stack(prev_cursor)
+    else
+        player.cursor_stack.clear()
+    end
+    if entity.type ~= "entity-ghost" and blueprintable then
         global.players[event.player_index].last_built_entity = event.created_entity
         -- put item back on cursor
         if player.cursor_stack and player.cursor_stack.valid_for_read and player.cursor_stack.name == event.stack.name then
@@ -492,5 +504,28 @@ script.on_event(defines.events.on_sector_scanned, function(event)
         config.explore_boundary[1][2] = y
     elseif y > config.explore_boundary[2][2] then
         config.explore_boundary[2][2] = y
+    end
+end)
+
+script.on_event(defines.events.on_tick, function(event)
+    for _, player in pairs(game.players) do
+        local config = global.forces[player.force.name]
+        -- prevent player from exploring
+        local teleport = player.vehicle and player.vehicle.position or player.position
+        if teleport.x < config.explore_boundary[1][1] then
+            teleport.x = config.explore_boundary[1][1]
+        elseif teleport.x > config.explore_boundary[2][1] then
+            teleport.x = config.explore_boundary[2][1]
+        end
+        if teleport.y < config.explore_boundary[1][2] then
+            teleport.y = config.explore_boundary[1][2]
+        elseif teleport.y > config.explore_boundary[2][2] then
+            teleport.y = config.explore_boundary[2][2]
+        end
+        if player.vehicle then
+            player.vehicle.teleport(teleport)
+        else
+            player.teleport(teleport)
+        end
     end
 end)
