@@ -484,7 +484,7 @@ script.on_event(defines.events.on_entity_died, function(event)
     local entity = event.entity
     -- check if roboport was destroyed
     local config = global.forces[entity.force.name]
-    if entity == config.robport then
+    if config and entity == config.robport then
         game.set_game_state{game_finished = true, player_won = false, can_continue = false}
     end
 end)
