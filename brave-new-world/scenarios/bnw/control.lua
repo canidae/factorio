@@ -85,9 +85,12 @@ function itemCountAllowed(name, count)
     elseif name == "locomotive" or name == "cargo-wagon" or name == "fluid-wagon" or name == "artillery-wagon" then
         -- locomotives and wagons must be placed manually
         return count
-    elseif name == "rail" or name == "train-stop" or name == "rail-signal" or name == "rail-chain-signal" then
-        -- rails can't be built with only blueprints, must allow these items
-        return count
+    elseif name == "rail" then
+        -- rail stuff can't be (correctly) built directly with blueprints, allow 10 rails for the short range rail planner
+        return 10
+    elseif name == "train-stop" or name == "rail-signal" or name == "rail-chain-signal" then
+        -- rail stuff can't be (correctly) built directly with blueprints, allow one that we'll later replace with a ghost
+        return 1
     elseif name == "car" or name == "tank" then
         -- let users put down cars & tanks
         return count
@@ -147,8 +150,7 @@ function replaceWithBlueprint(item_stack, direction)
 end
 
 function spillItems(player, name, count)
-    local config = global.forces[player.force.name]
-    local roboport = config.roboport
+    local roboport = global.forces[player.force.name].roboport
     local remaining = count - roboport.logistic_network.insert{name = name, count = count}
     if remaining > 0 then
         -- network storage is full, explode items around roboport
@@ -343,6 +345,58 @@ script.on_event(defines.events.on_player_created, function(event)
     setupForce(player.force, player.surface, 0, 0)
 end)
 
+function convertToGhost(player, entity)
+    local prev_cursor = nil
+    if player.cursor_stack and player.cursor_stack.valid_for_read then
+        prev_cursor = {name = player.cursor_stack.name, count = player.cursor_stack.count}
+    end
+    -- replace last built entity with ghost
+    local surface = entity.surface
+    local pos = entity.position
+    local force = entity.force
+    player.cursor_stack.set_stack{name = "blueprint", count = 1}
+    local x = (math.ceil(entity.selection_box.right_bottom.x * 2) % 2) / 2 - 0.5
+    local y = (math.ceil(entity.selection_box.right_bottom.y * 2) % 2) / 2 - 0.5
+    player.cursor_stack.set_blueprint_entities({
+        {
+            entity_number = 1,
+            name = entity.name,
+            direction = entity.direction,
+            position = {x = x, y = y}
+        }
+    })
+    -- place blueprint
+    if player.cursor_stack.get_blueprint_entities() then
+        -- remove entity
+        entity.destroy()
+        player.cursor_stack.build_blueprint{surface = surface, force = force, position = pos, force_build = true}
+    end
+    if prev_cursor then
+        player.cursor_stack.set_stack(prev_cursor)
+    else
+        player.cursor_stack.clear()
+    end
+end
+
+script.on_event(defines.events.on_built_entity, function(event)
+    local player = game.players[event.player_index]
+    local entity = event.created_entity
+    local last_entity = global.players[event.player_index].last_built_entity
+    if last_entity then
+        convertToGhost(player, last_entity)
+        global.players[event.player_index].last_built_entity = nil
+    end
+    if entity.type ~= "entity-ghost" then
+        global.players[event.player_index].last_built_entity = event.created_entity
+        -- put item back on cursor
+        if player.cursor_stack and player.cursor_stack.valid_for_read and player.cursor_stack.name == event.stack.name then
+            player.cursor_stack.count = player.cursor_stack.count + event.stack.count
+        else
+            player.cursor_stack.set_stack(event.stack)
+        end
+    end
+end)
+
 script.on_event(defines.events.on_player_crafted_item, function(event)
     local crafted = global.players[event.player_index].crafted
     crafted[#crafted + 1] = event.item_stack
@@ -351,8 +405,8 @@ end)
 script.on_event(defines.events.on_player_pipette, function(event)
     local player = game.players[event.player_index]
     local name = player.cursor_stack.name
-    if name == "rail" or name == "train-stop" or name == "rail-signal" or name == "rail-chain-signal" then
-        -- rail entities may be carried, but only allow pipetting if player got item in inventory
+    if itemCountAllowed(name, player.cursor_stack.count) > 0 then
+        -- some entities may be carried, but only allow pipetting if player got item in inventory (or cheat mode will make some)
         if not global.players[event.player_index].inventory_items[name] then
             player.cursor_stack.clear()
         end
@@ -369,6 +423,11 @@ script.on_event(defines.events.on_player_quickbar_inventory_changed, inventoryCh
 script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
     local player = game.players[event.player_index]
     local cursor = player.cursor_stack
+    local last_entity = global.players[event.player_index].last_built_entity
+    if last_entity and (not cursor or not cursor.valid_for_read) then
+        convertToGhost(player, last_entity)
+        global.players[event.player_index].last_built_entity = nil
+    end
     if cursor and cursor.valid_for_read then
         local count_remaining = itemCountAllowed(cursor.name, cursor.count)
         local to_remove = cursor.count - count_remaining
