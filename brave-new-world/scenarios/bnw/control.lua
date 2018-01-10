@@ -151,7 +151,7 @@ end
 
 function spillItems(player, name, count)
     local roboport = global.forces[player.force.name].roboport
-    local remaining = count - roboport.logistic_network.insert{name = name, count = count}
+    local remaining = count - roboport.logistic_network.insert({name = name, count = count}, "storage")
     if remaining > 0 then
         -- network storage is full, explode items around roboport
         game.print({"out-of-storage"})
