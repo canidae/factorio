@@ -67,8 +67,10 @@ script.on_event(defines.events.on_tick, function()
                     if slot > slots then
                         break
                     end
-                    player.character.set_request_slot({name = item, count = count}, slot)
-                    slot = slot + 1
+                    if count > 0 then
+                        player.character.set_request_slot({name = item, count = count}, slot)
+                        slot = slot + 1
+                    end
                 end
                 -- clear remaining request slots
                 for slot = slot, slots do
