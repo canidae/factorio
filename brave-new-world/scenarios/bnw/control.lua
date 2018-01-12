@@ -397,7 +397,6 @@ script.on_event(defines.events.on_built_entity, function(event)
         convertToGhost(player, last_entity)
         global.players[event.player_index].last_built_entity = nil
     end
-    -- if entity can be blueprinted then set last_built_entity and put item back on cursor
     if entity.type ~= "entity-ghost" then
         local prev_cursor = nil
         if player.cursor_stack and player.cursor_stack.valid_for_read then
@@ -410,6 +409,7 @@ script.on_event(defines.events.on_built_entity, function(event)
         else
             player.cursor_stack.clear()
         end
+        -- if entity can be blueprinted then set last_built_entity and put item back on cursor
         if blueprintable then
             global.players[event.player_index].last_built_entity = event.created_entity
             -- put item back on cursor
@@ -417,6 +417,17 @@ script.on_event(defines.events.on_built_entity, function(event)
                 player.cursor_stack.count = player.cursor_stack.count + event.stack.count
             else
                 player.cursor_stack.set_stack(event.stack)
+            end
+        end
+    elseif player.cursor_stack and player.cursor_stack.valid_for_read and player.cursor_stack.is_blueprint then
+        -- if player holds blueprint of pipe or underground belt, rotate blueprint
+        local entities = player.cursor_stack.get_blueprint_entities()
+        local direction = entities.direction or 0
+        if #entities == 1 then
+            local name = entities[1].name
+            if name == "pipe-to-ground" or name == "underground-belt" or name == "fast-underground-belt" or name == "express-underground-belt" then
+                entities[1].direction = ((entities[1].direction or 0) + 4) % 8
+                player.cursor_stack.set_blueprint_entities(entities)
             end
         end
     end
