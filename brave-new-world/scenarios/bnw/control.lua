@@ -79,6 +79,9 @@ function itemCountAllowed(name, count)
     elseif name == "copper-cable" then
         -- need this for manually connecting poles, but don't want player to manually move stuff around so we'll limit it
         return math.min(20, count)
+    elseif name == "small-electric-pole" or name == "medium-electric-pole" or name == "big-electric-pole" or name == "substation" then
+        -- allow user to carry one of each power pole, makes it easier to place poles at max distance
+        return 1
     elseif name == "blueprint" or name == "deconstruction-planner" or name == "blueprint-book" then
         -- these only place ghosts
         return count
@@ -360,8 +363,8 @@ function convertToGhost(player, entity)
     local pos = entity.position
     local force = entity.force
     player.cursor_stack.set_stack{name = "blueprint", count = 1}
-    local x = (math.ceil(entity.selection_box.right_bottom.x * 2) % 2) / 2 - 0.5
-    local y = (math.ceil(entity.selection_box.right_bottom.y * 2) % 2) / 2 - 0.5
+    local width = (math.ceil(entity.selection_box.right_bottom.x * 2) % 2) / 2 - 0.5
+    local height = (math.ceil(entity.selection_box.right_bottom.y * 2) % 2) / 2 - 0.5
     if direction and direction % 4 == 2 then
         -- entity is rotated, swap width & height
         local tmp = width
@@ -398,6 +401,10 @@ script.on_event(defines.events.on_built_entity, function(event)
         global.players[event.player_index].last_built_entity = nil
     end
     if entity.type ~= "entity-ghost" then
+        -- disconnect electric poles
+        if entity.type == "electric-pole" then
+            entity.disconnect_neighbour()
+        end
         local prev_cursor = nil
         if player.cursor_stack and player.cursor_stack.valid_for_read then
             prev_cursor = {name = player.cursor_stack.name, count = player.cursor_stack.count}
