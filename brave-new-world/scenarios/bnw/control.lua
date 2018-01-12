@@ -525,8 +525,8 @@ script.on_event(defines.events.on_sector_scanned, function(event)
     local position = event.chunk_position
     local radar = event.radar
     local config = global.forces[radar.force.name]
-    local x = ((position.x <= 0 and (position.x + 5)) or (position.x > 0 and (position.x - 5))) * 32
-    local y = ((position.y <= 0 and (position.y + 5)) or (position.y > 0 and (position.y - 5))) * 32
+    local x = ((position.x <= 0 and (position.x + 4)) or (position.x > 0 and (position.x - 4))) * 32
+    local y = ((position.y <= 0 and (position.y + 4)) or (position.y > 0 and (position.y - 4))) * 32
     if x < config.explore_boundary[1][1] then
         config.explore_boundary[1][1] = x
     elseif x > config.explore_boundary[2][1] then
