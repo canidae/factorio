@@ -117,14 +117,20 @@ function replaceWithBlueprint(item_stack, direction)
     local setBlueprintEntities = function()
         item_stack.set_stack{name = "blueprint", count = 1}
         if place_entity then
-            local x = (math.ceil(place_entity.selection_box.right_bottom.x * 2) % 2) / 2 - 0.5
-            local y = (math.ceil(place_entity.selection_box.right_bottom.y * 2) % 2) / 2 - 0.5
+            local width = (math.ceil(place_entity.selection_box.right_bottom.x * 2) % 2) / 2 - 0.5
+            local height = (math.ceil(place_entity.selection_box.right_bottom.y * 2) % 2) / 2 - 0.5
+            if direction and direction % 4 == 2 then
+                -- entity is rotated, swap width & height
+                local tmp = width
+                width = height
+                height = tmp
+            end
             item_stack.set_blueprint_entities({
                 {
                     entity_number = 1,
                     name = place_entity.name,
                     direction = direction,
-                    position = {x = x, y = y}
+                    position = {x = width, y = height}
                 }
             })
         end
@@ -356,12 +362,18 @@ function convertToGhost(player, entity)
     player.cursor_stack.set_stack{name = "blueprint", count = 1}
     local x = (math.ceil(entity.selection_box.right_bottom.x * 2) % 2) / 2 - 0.5
     local y = (math.ceil(entity.selection_box.right_bottom.y * 2) % 2) / 2 - 0.5
+    if direction and direction % 4 == 2 then
+        -- entity is rotated, swap width & height
+        local tmp = width
+        width = height
+        height = tmp
+    end
     player.cursor_stack.set_blueprint_entities({
         {
             entity_number = 1,
             name = entity.name,
             direction = entity.direction,
-            position = {x = x, y = y}
+            position = {x = width, y = height}
         }
     })
     -- place blueprint
