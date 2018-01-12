@@ -386,24 +386,26 @@ script.on_event(defines.events.on_built_entity, function(event)
         global.players[event.player_index].last_built_entity = nil
     end
     -- if entity can be blueprinted then set last_built_entity and put item back on cursor
-    local prev_cursor = nil
-    if player.cursor_stack and player.cursor_stack.valid_for_read then
-        prev_cursor = {name = player.cursor_stack.name, count = player.cursor_stack.count}
-    end
-    player.cursor_stack.set_stack(event.stack)
-    local blueprintable = replaceWithBlueprint(player.cursor_stack)
-    if prev_cursor then
-        player.cursor_stack.set_stack(prev_cursor)
-    else
-        player.cursor_stack.clear()
-    end
-    if entity.type ~= "entity-ghost" and blueprintable then
-        global.players[event.player_index].last_built_entity = event.created_entity
-        -- put item back on cursor
-        if player.cursor_stack and player.cursor_stack.valid_for_read and player.cursor_stack.name == event.stack.name then
-            player.cursor_stack.count = player.cursor_stack.count + event.stack.count
+    if entity.type ~= "entity-ghost" then
+        local prev_cursor = nil
+        if player.cursor_stack and player.cursor_stack.valid_for_read then
+            prev_cursor = {name = player.cursor_stack.name, count = player.cursor_stack.count}
+        end
+        player.cursor_stack.set_stack(event.stack)
+        local blueprintable = replaceWithBlueprint(player.cursor_stack)
+        if prev_cursor then
+            player.cursor_stack.set_stack(prev_cursor)
         else
-            player.cursor_stack.set_stack(event.stack)
+            player.cursor_stack.clear()
+        end
+        if blueprintable then
+            global.players[event.player_index].last_built_entity = event.created_entity
+            -- put item back on cursor
+            if player.cursor_stack and player.cursor_stack.valid_for_read and player.cursor_stack.name == event.stack.name then
+                player.cursor_stack.count = player.cursor_stack.count + event.stack.count
+            else
+                player.cursor_stack.set_stack(event.stack)
+            end
         end
     end
 end)
