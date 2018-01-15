@@ -106,6 +106,9 @@ function itemCountAllowed(name, count)
     elseif name == "droid-selection-tool" then
         -- let users have the command tool for Robot Army mod (but not the pickup tool)
         return count
+    elseif name == "outpost-builder" then
+        -- let users have an outpost planner tool
+        return count
     elseif string.match(name, ".*module.*") then
         -- allow modules
         return count
