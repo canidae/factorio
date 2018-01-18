@@ -57,15 +57,32 @@ function inventoryChanged(event)
         local to_remove = item.count - allowed
         if to_remove > 0 then
             local entity = player.selected or player.opened
-            local inserted = entity and entity.insert and entity.insert{name = name, count = to_remove} or 0
-            local remaining = to_remove - inserted
+            local inserted = 0
+            if entity and entity.insert then
+                for _, inventory_id in pairs(defines.inventory) do
+                    local inventory = entity.get_inventory(inventory_id)
+                    if inventory then
+                        local barpos = inventory.hasbar() and inventory.getbar() or nil
+                        if inventory.hasbar() then
+                            inventory.setbar() -- clear bar (the chest size limiter)
+                        end
+                        inserted = inserted + inventory.insert{name = name, count = to_remove - inserted}
+                        if inventory.hasbar() then
+                            inventory.setbar(barpos) -- reset bar
+                        end
+                        if to_remove - inserted <= 0 then
+                            break
+                        end
+                    end
+                end
+            end
             if allowed == 0 and not blueprints[name] then
                 if not replaceWithBlueprint(item.slot) then
                     item.slot.clear()
                 end
             end
-            if remaining > 0 then
-                spillItems((entity and entity.logistic_network and entity) or global.forces[player.force.name].roboport, name, remaining)
+            if to_remove - inserted > 0 then
+                spillItems((entity and entity.logistic_network and entity) or global.forces[player.force.name].roboport, name, to_remove - inserted)
             end
             player.remove_item{name = name, count = to_remove}
         end
@@ -277,10 +294,10 @@ function setupForce(force, surface, x, y)
     chest_inventory.insert{name = "pipe", count = 20}
     chest_inventory.insert{name = "pipe-to-ground", count = 10}
     chest_inventory.insert{name = "burner-inserter", count = 4}
-    chest_inventory.insert{name = "inserter", count = 8}
+    chest_inventory.insert{name = "inserter", count = 16}
     chest_inventory.insert{name = "medium-electric-pole", count = 50}
     chest_inventory.insert{name = "small-lamp", count = 10}
-    chest_inventory.insert{name = "stone-furnace", count = 8}
+    chest_inventory.insert{name = "stone-furnace", count = 4}
     chest_inventory.insert{name = "offshore-pump", count = 1}
     chest_inventory.insert{name = "boiler", count = 1}
     chest_inventory.insert{name = "steam-engine", count = 2}
