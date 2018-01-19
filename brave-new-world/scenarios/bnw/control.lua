@@ -371,6 +371,9 @@ script.on_event(defines.events.on_player_created, function(event)
 end)
 
 function convertToGhost(player, entity)
+    if not entity or not entity.valid then
+        return
+    end
     local prev_cursor = nil
     if player.cursor_stack and player.cursor_stack.valid_for_read then
         prev_cursor = {name = player.cursor_stack.name, count = player.cursor_stack.count}
