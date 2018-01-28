@@ -492,6 +492,17 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
         global.players[event.player_index].last_built_entity = nil
     end
     if cursor and cursor.valid_for_read then
+        if cursor.is_deconstruction_item then
+            global.players[event.player_index].upgrade = {}
+            for i = 11, cursor.entity_filter_count - 10 do
+                local from = cursor.get_entity_filter(i)
+                local to = cursor.get_entity_filter(i + 10)
+                if from and to then
+                    global.players[event.player_index].upgrade_to[from] = to
+                    global.players[event.player_index].upgraded_from[to] = from
+                end
+            end
+        end
         local count_remaining = itemCountAllowed(cursor.name, cursor.count)
         local to_remove = cursor.count - count_remaining
         if to_remove > 0 then
@@ -529,6 +540,22 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
     end
     if out_of_storage then
         game.print({"out-of-storage"})
+    end
+end)
+
+script.on_event(defines.events.on_marked_for_deconstruction, function(event)
+    if not event.player_index then
+        return
+    end
+    local entity = event.entity
+    local player = game.players[event.player_index]
+    if player.cursor_stack and player.cursor_stack.valid_for_read and player.cursor_stack.is_deconstruction_item then
+        if global.players[event.player_index].upgrade_to[entity.name] then
+            entity.surface.create_entity{name = "entity-ghost", position = entity.position, direction = entity.direction, force = entity.force, inner_name = global.players[event.player_index].upgrade[entity.name]}
+        elseif global.players[event.player_index].upgraded_from[entity.name] then
+            -- prevent user from deconstructing recently upgraded entity
+            entity.cancel_deconstruction(entity.force)
+        end
     end
 end)
 
