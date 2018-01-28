@@ -348,28 +348,6 @@ function setupForce(force, surface, x, y)
     accumulator.energy = 5000000
 end
 
-script.on_event(defines.events.on_player_created, function(event)
-    if not global.players then
-        global.players = {}
-    end
-    global.players[event.player_index] = {
-        crafted = {},
-        inventory_items = {}
-    }
-    local player = game.players[event.player_index]
-    if player.character then
-        player.character.destroy()
-        player.character = nil
-    end
-    -- disable light
-    player.disable_flashlight()
-    -- enable cheat mode
-    player.cheat_mode = true
-
-    -- setup force
-    setupForce(player.force, player.surface, 0, 0)
-end)
-
 function convertToGhost(player, entity)
     if not entity or not entity.valid then
         return
@@ -411,6 +389,28 @@ function convertToGhost(player, entity)
         player.cursor_stack.clear()
     end
 end
+
+script.on_event(defines.events.on_player_created, function(event)
+    if not global.players then
+        global.players = {}
+    end
+    global.players[event.player_index] = {
+        crafted = {},
+        inventory_items = {}
+    }
+    local player = game.players[event.player_index]
+    if player.character then
+        player.character.destroy()
+        player.character = nil
+    end
+    -- disable light
+    player.disable_flashlight()
+    -- enable cheat mode
+    player.cheat_mode = true
+
+    -- setup force
+    setupForce(player.force, player.surface, 0, 0)
+end)
 
 script.on_event(defines.events.on_built_entity, function(event)
     local player = game.players[event.player_index]
