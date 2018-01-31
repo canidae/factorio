@@ -496,7 +496,8 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
     end
     if cursor and cursor.valid_for_read then
         if cursor.is_deconstruction_item then
-            global.players[event.player_index].upgrade = {}
+            global.players[event.player_index].upgrade_to = {}
+            global.players[event.player_index].upgrade_from = {}
             for i = 11, cursor.entity_filter_count - 10 do
                 local from = cursor.get_entity_filter(i)
                 local to = cursor.get_entity_filter(i + 10)
@@ -554,7 +555,7 @@ script.on_event(defines.events.on_marked_for_deconstruction, function(event)
     local player = game.players[event.player_index]
     if player.cursor_stack and player.cursor_stack.valid_for_read and player.cursor_stack.is_deconstruction_item then
         if global.players[event.player_index].upgrade_to[entity.name] then
-            entity.surface.create_entity{name = "entity-ghost", position = entity.position, direction = entity.direction, force = entity.force, inner_name = global.players[event.player_index].upgrade[entity.name]}
+            entity.surface.create_entity{name = "entity-ghost", position = entity.position, direction = entity.direction, force = entity.force, inner_name = global.players[event.player_index].upgrade_to[entity.name]}
         elseif global.players[event.player_index].upgraded_from[entity.name] then
             -- prevent user from deconstructing recently upgraded entity
             entity.cancel_deconstruction(entity.force)
