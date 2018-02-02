@@ -496,14 +496,14 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
     end
     if cursor and cursor.valid_for_read then
         if cursor.is_deconstruction_item then
-            global.players[event.player_index].upgrade_to = {}
-            global.players[event.player_index].upgrade_from = {}
+            global.players[event.player_index].replace_entity = {}
+            global.players[event.player_index].keep_entity = {}
             for i = 11, cursor.entity_filter_count - 10 do
                 local from = cursor.get_entity_filter(i)
                 local to = cursor.get_entity_filter(i + 10)
                 if from and to then
-                    global.players[event.player_index].upgrade_to[from] = to
-                    global.players[event.player_index].upgraded_from[to] = from
+                    global.players[event.player_index].replace_entity[from] = to
+                    global.players[event.player_index].keep_entity[to] = from
                 end
             end
         end
@@ -554,10 +554,10 @@ script.on_event(defines.events.on_marked_for_deconstruction, function(event)
     local entity = event.entity
     local player = game.players[event.player_index]
     if player.cursor_stack and player.cursor_stack.valid_for_read and player.cursor_stack.is_deconstruction_item then
-        if global.players[event.player_index].upgrade_to[entity.name] then
-            entity.surface.create_entity{name = "entity-ghost", position = entity.position, direction = entity.direction, force = entity.force, inner_name = global.players[event.player_index].upgrade_to[entity.name]}
-        elseif global.players[event.player_index].upgraded_from[entity.name] then
-            -- prevent user from deconstructing recently upgraded entity
+        if global.players[event.player_index].replace_entity[entity.name] then
+            entity.surface.create_entity{name = "entity-ghost", position = entity.position, direction = entity.direction, force = entity.force, inner_name = global.players[event.player_index].replace_entity[entity.name]}
+        elseif global.players[event.player_index].keep_entity[entity.name] then
+            -- prevent user from deconstructing target entities of replaced entities
             entity.cancel_deconstruction(entity.force)
         end
     end
