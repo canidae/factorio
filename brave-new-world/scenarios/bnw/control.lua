@@ -423,7 +423,7 @@ script.on_event(defines.events.on_built_entity, function(event)
         convertToGhost(player, last_entity)
         global.players[event.player_index].last_built_entity = nil
     end
-    if entity.type ~= "entity-ghost" then
+    if entity.type ~= "entity-ghost" and entity.type ~= "tile-ghost" then
         -- disconnect electric poles
         if entity.type == "electric-pole" then
             entity.disconnect_neighbour()
@@ -452,8 +452,8 @@ script.on_event(defines.events.on_built_entity, function(event)
     elseif player.cursor_stack and player.cursor_stack.valid_for_read and player.cursor_stack.is_blueprint then
         -- if player holds blueprint of pipe or underground belt, rotate blueprint
         local entities = player.cursor_stack.get_blueprint_entities()
-        local direction = entities.direction or 0
-        if #entities == 1 then
+        if entities and #entities == 1 then
+            local direction = entities.direction or 0
             local name = entities[1].name
             if name == "pipe-to-ground" or name == "underground-belt" or name == "fast-underground-belt" or name == "express-underground-belt" then
                 entities[1].direction = ((entities[1].direction or 0) + 4) % 8
