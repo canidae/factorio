@@ -81,8 +81,15 @@ function inventoryChanged(event)
                     item.slot.clear()
                 end
             end
-            if to_remove - inserted > 0 then
-                spillItems((entity and entity.logistic_network and entity) or global.forces[player.force.name].roboport, name, to_remove - inserted)
+            local remaining = to_remove - inserted
+            if remaining > 0 then
+                local insert_into = (entity and entity.logistic_network and entity) or global.forces[player.force.name].roboport
+                remaining = remaining - insert_into.logistic_network.insert({name = name, count = remaining}, "storage")
+                if remaining > 0 then
+                    -- network storage is full, explode items around entity
+                    player.print({"out-of-storage"})
+                    insert_into.surface.spill_item_stack(insert_into.position, {name = name, count = remaining})
+                end
             end
             player.remove_item{name = name, count = to_remove}
         end
@@ -176,15 +183,6 @@ function replaceWithBlueprint(item_stack, direction)
     -- pcall was the easiest way to check if a valid blueprint was made
     -- (some items produce entities that aren't blueprintable, but there doesn't seem to be a reliable way to detect this)
     return pcall(setBlueprintEntities)
-end
-
-function spillItems(entity, name, count)
-    local remaining = count - entity.logistic_network.insert({name = name, count = count}, "storage")
-    if remaining > 0 then
-        -- network storage is full, explode items around entity
-        game.print({"out-of-storage"})
-        entity.surface.spill_item_stack(entity.position, {name = name, count = remaining})
-    end
 end
 
 function setupForce(force, surface, x, y)
@@ -351,19 +349,15 @@ function setupForce(force, surface, x, y)
     accumulator.energy = 5000000
 end
 
-function convertToGhost(player, entity)
+function convertToGhost(entity)
     if not entity or not entity.valid then
         return
-    end
-    local prev_cursor = nil
-    if player.cursor_stack and player.cursor_stack.valid_for_read then
-        prev_cursor = {name = player.cursor_stack.name, count = player.cursor_stack.count}
     end
     -- replace last built entity with ghost
     local surface = entity.surface
     local pos = entity.position
     local force = entity.force
-    player.cursor_stack.set_stack{name = "blueprint", count = 1}
+    global.tmpstack.set_stack{name = "blueprint", count = 1}
     local width = (math.ceil(entity.selection_box.right_bottom.x * 2) % 2) / 2 - 0.5
     local height = (math.ceil(entity.selection_box.right_bottom.y * 2) % 2) / 2 - 0.5
     if direction and direction % 4 == 2 then
@@ -372,7 +366,7 @@ function convertToGhost(player, entity)
         width = height
         height = tmp
     end
-    player.cursor_stack.set_blueprint_entities({
+    global.tmpstack.set_blueprint_entities({
         {
             entity_number = 1,
             name = entity.name,
@@ -381,15 +375,10 @@ function convertToGhost(player, entity)
         }
     })
     -- place blueprint
-    if player.cursor_stack.get_blueprint_entities() then
+    if global.tmpstack.get_blueprint_entities() then
         -- remove entity
         entity.destroy()
-        player.cursor_stack.build_blueprint{surface = surface, force = force, position = pos, force_build = true}
-    end
-    if prev_cursor then
-        player.cursor_stack.set_stack(prev_cursor)
-    else
-        player.cursor_stack.clear()
+        global.tmpstack.build_blueprint{surface = surface, force = force, position = pos, force_build = true}
     end
 end
 
@@ -401,6 +390,14 @@ script.on_event(defines.events.on_player_created, function(event)
         crafted = {},
         inventory_items = {}
     }
+
+    -- create a "staging" surface that helps with the magic
+    if not game.surfaces.staging then
+        game.create_surface("staging", {width = 1, height = 1, seed = 42})
+        global.chest = game.surfaces.staging.create_entity{name = "wooden-chest", position = {0, 0}}
+        global.tmpstack = global.chest.get_inventory(defines.inventory.chest)[1]
+    end
+
     local player = game.players[event.player_index]
     if player.character then
         player.character.destroy()
@@ -420,7 +417,7 @@ script.on_event(defines.events.on_built_entity, function(event)
     local entity = event.created_entity
     local last_entity = global.players[event.player_index].last_built_entity
     if last_entity then
-        convertToGhost(player, last_entity)
+        convertToGhost(last_entity)
         global.players[event.player_index].last_built_entity = nil
     end
     if entity.type ~= "entity-ghost" and entity.type ~= "tile-ghost" then
@@ -428,17 +425,10 @@ script.on_event(defines.events.on_built_entity, function(event)
         if entity.type == "electric-pole" then
             entity.disconnect_neighbour()
         end
-        local prev_cursor = nil
-        if player.cursor_stack and player.cursor_stack.valid_for_read then
-            prev_cursor = {name = player.cursor_stack.name, count = player.cursor_stack.count}
-        end
+        global.tmpstack.set_stack(player.cursor_stack)
         player.cursor_stack.set_stack(event.stack)
         local blueprintable = replaceWithBlueprint(player.cursor_stack)
-        if prev_cursor then
-            player.cursor_stack.set_stack(prev_cursor)
-        else
-            player.cursor_stack.clear()
-        end
+        player.cursor_stack.set_stack(global.tmpstack)
         -- if entity can be blueprinted then set last_built_entity and put item back on cursor
         if blueprintable then
             global.players[event.player_index].last_built_entity = event.created_entity
@@ -491,7 +481,7 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
     local cursor = player.cursor_stack
     local last_entity = global.players[event.player_index].last_built_entity
     if last_entity and (not cursor or not cursor.valid_for_read) then
-        convertToGhost(player, last_entity)
+        convertToGhost(last_entity)
         global.players[event.player_index].last_built_entity = nil
     end
     if cursor and cursor.valid_for_read then
@@ -548,7 +538,7 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
         end
     end
     if out_of_storage then
-        game.print({"out-of-storage"})
+        player.print({"out-of-storage"})
     end
 end)
 
@@ -560,19 +550,21 @@ script.on_event(defines.events.on_marked_for_deconstruction, function(event)
     local player = game.players[event.player_index]
     if player.cursor_stack and player.cursor_stack.valid_for_read and player.cursor_stack.is_deconstruction_item then
         if global.players[event.player_index].replace_entity[entity.name] then
-            local entity_data = {
-                name = "entity-ghost",
-                position = entity.position,
-                direction = entity.direction,
-                force = entity.force,
-                inner_name = global.players[event.player_index].replace_entity[entity.name]
-            }
-            if entity.type == "underground-belt" then
-                entity_data.type = entity.belt_to_ground_type
-            end
             -- using pcall in case someone tries to create a ghost of a fish or something
             local create_ghost = function()
-                entity.surface.create_entity(entity_data)
+                global.tmpstack.set_stack{name = "blueprint", count = 1}
+                entity.cancel_deconstruction(entity.force) -- must cancel deconstruction or it won't be added to blueprint
+                global.tmpstack.create_blueprint{surface = entity.surface, force = entity.force, area = {entity.position, entity.position}}
+                entity.order_deconstruction(entity.force)
+                local blueprint = nil
+                for _, bp_entity in pairs(global.tmpstack.get_blueprint_entities()) do
+                    if bp_entity.name == entity.name then
+                        bp_entity.name = global.players[event.player_index].replace_entity[entity.name]
+                        blueprint = {bp_entity}
+                    end
+                end
+                global.tmpstack.set_blueprint_entities(blueprint)
+                global.tmpstack.build_blueprint{surface = entity.surface, force = entity.force, position = entity.position, direction = defines.direction.north}
             end
             pcall(create_ghost)
         end
