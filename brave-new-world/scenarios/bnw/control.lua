@@ -567,19 +567,7 @@ script.on_event(defines.events.on_marked_for_deconstruction, function(event)
                 force = entity.force,
                 inner_name = global.players[event.player_index].replace_entity[entity.name]
             }
-            if entity.type == "assembling-machine" then
-                entity_data.recipe = entity.get_recipe()
-            elseif entity.type == "container" or entity.type == "logistic-container" then
-                local inventory = entity.get_inventory(defines.inventory.chest)
-                if inventory.hasbar() then
-                    entity_data.bar = inventory.getbar()
-                end
-                if entity.type == "logistic-container" then
-                    -- TODO: request_filters = 
-                end
-            elseif entity.type == "inserter" then
-                -- TODO
-            elseif entity.type == "underground-belt" then
+            if entity.type == "underground-belt" then
                 entity_data.type = entity.belt_to_ground_type
             end
             -- using pcall in case someone tries to create a ghost of a fish or something
