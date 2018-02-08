@@ -189,7 +189,9 @@ function setupForce(force, surface, x, y)
     if not global.forces then
         global.forces = {}
     end
-    global.forces[force.name] = {}
+    global.forces[force.name] = {
+        rewires = {}
+    }
     local config = global.forces[force.name]
     -- prevent mining and crafting
     force.manual_mining_speed_modifier = -0.99999999 -- allows removing ghosts with right-click
@@ -453,6 +455,27 @@ script.on_event(defines.events.on_built_entity, function(event)
     end
 end)
 
+script.on_event(defines.events.on_robot_built_entity, function(event)
+    -- TODO: upgrading and removing ghosts leaves stale entries (memory leak). probably not serious, so issue is ignored for now
+    local entity = event.created_entity
+    local rewires = global.forces[entity.force.name].rewires[entity.position.x .. ";" .. entity.position.y]
+    if rewires then
+        for _, wire in pairs(rewires) do
+            if not wire.target_entity.valid then
+                -- target entity is gone, try to connect to entity at target location
+                local entities = entity.surface.find_entities_filtered{position = wire.position, force = entity.force}
+                if #entities > 0 then
+                    wire.target_entity = entities[1]
+                end
+            end
+            if wire.target_entity.valid then
+                entity.connect_neighbour(wire)
+            end
+        end
+        global.forces[entity.force.name].rewires[entity.position.x .. ";" .. entity.position.y] = nil
+    end
+end)
+
 script.on_event(defines.events.on_player_crafted_item, function(event)
     local crafted = global.players[event.player_index].crafted
     crafted[#crafted + 1] = event.item_stack
@@ -549,7 +572,7 @@ script.on_event(defines.events.on_marked_for_deconstruction, function(event)
     local entity = event.entity
     local player = game.players[event.player_index]
     if player.cursor_stack and player.cursor_stack.valid_for_read and player.cursor_stack.is_deconstruction_item then
-        if global.players[event.player_index].replace_entity[entity.name] then
+        if global.players[event.player_index].replace_entity and global.players[event.player_index].replace_entity[entity.name] then
             -- using pcall in case someone tries to create a ghost of a fish or something
             local create_ghost = function()
                 global.tmpstack.set_stack{name = "blueprint", count = 1}
@@ -565,6 +588,15 @@ script.on_event(defines.events.on_marked_for_deconstruction, function(event)
                 end
                 global.tmpstack.set_blueprint_entities(blueprint)
                 global.tmpstack.build_blueprint{surface = entity.surface, force = entity.force, position = entity.position, direction = defines.direction.north}
+                -- any wires connected to entity?
+                local wires = entity.circuit_connection_definitions
+                if wires and #wires > 0 then
+                    for i = 1, #wires do
+                        -- in case target entity is lost
+                        wires[i].position = wires[i].target_entity.position
+                    end
+                    global.forces[entity.force.name].rewires[entity.position.x .. ";" .. entity.position.y] = wires
+                end
             end
             pcall(create_ghost)
         end
