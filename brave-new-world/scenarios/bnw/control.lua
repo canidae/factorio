@@ -97,19 +97,29 @@ function inventoryChanged(event)
 end
 
 function itemCountAllowed(name, count)
+    local item = game.item_prototypes[name]
+    local place_result = item.place_result
+            or (item.place_as_tile_result and {type="tile"})
+            or {}
     if name == "red-wire" or name == "green-wire" then
         -- need these for circuitry, one stack is enough
         return math.min(200, count)
     elseif name == "copper-cable" then
         -- need this for manually connecting poles, but don't want player to manually move stuff around so we'll limit it
         return math.min(20, count)
-    elseif name == "small-electric-pole" or name == "medium-electric-pole" or name == "big-electric-pole" or name == "substation" then
+    elseif place_result.type and place_result.type == "electric-pole" then
         -- allow user to carry one of each power pole, makes it easier to place poles at max distance
         return 1
-    elseif name == "blueprint" or name == "deconstruction-planner" or name == "blueprint-book" then
-        -- these only place ghosts
+    elseif item.type and item.type == "blueprint"
+            or item.type == "deconstruction-item"
+            or item.type == "blueprint-book"
+            or item.type == "selection-tool" then
+        -- these only place ghosts or are utility items
         return count
-    elseif name == "locomotive" or name == "cargo-wagon" or name == "fluid-wagon" or name == "artillery-wagon" then
+    elseif place_result.type and place_result.type == "locomotive"
+            or place_result.type == "cargo-wagon"
+            or place_result.type == "fluid-wagon"
+            or place_result.type == "artillery-wagon" then
         -- locomotives and wagons must be placed manually
         return count
     elseif name == "rail" then
@@ -118,21 +128,18 @@ function itemCountAllowed(name, count)
     elseif name == "train-stop" or name == "rail-signal" or name == "rail-chain-signal" then
         -- rail stuff can't be (correctly) built directly with blueprints, allow one that we'll later replace with a ghost
         return 1
-    elseif name == "car" or name == "tank" then
+    elseif place_result.type and place_result.type == "car" then
         -- let users put down cars & tanks
         return count
-    elseif name == "landfill" or name == "cliff-explosives" then
-        -- let users fill in water and remove cliffs
-        return count
-    elseif name == "artillery-targeting-remote" then
-        -- let users use the artillery targeting remote
+    elseif place_result.type and place_result.type == "tile" then
+        -- can be used for paving. primarily esthetic feature, we'll allow one to prioritize the use of ghost
+        return 1
+    elseif name == "cliff-explosives" then
+        -- allow cliff explosives, let the user remove cliffs
         return count
     elseif name == "droid-selection-tool" then
         -- let users have the command tool for Robot Army mod (but not the pickup tool)
-        return count
-    elseif name == "outpost-builder" then
-        -- let users have an outpost planner tool
-        return count
+        return 1
     elseif string.match(name, ".*module.*") then
         -- allow modules
         return count
