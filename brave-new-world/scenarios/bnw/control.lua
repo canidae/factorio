@@ -111,8 +111,8 @@ function itemCountAllowed(name, count)
         -- allow user to carry one of each power pole, makes it easier to place poles at max distance
         return 1
     elseif place_result.type and place_result.type == "roboport"
-            or place_result.type == "logistic-container"
-            or place_result.type == "construction-robot" then
+            or place_result.type == "construction-robot"
+            or (place_result.type == "logistic-container" and place_result.logistic_mode == "storage") then
         -- allow user to carry one of each for mods that adds surfaces
         return 1
     elseif item.type and item.type == "blueprint"
