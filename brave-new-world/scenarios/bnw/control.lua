@@ -110,6 +110,11 @@ function itemCountAllowed(name, count)
     elseif place_result.type and place_result.type == "electric-pole" then
         -- allow user to carry one of each power pole, makes it easier to place poles at max distance
         return 1
+    elseif place_result.type and place_result.type == "roboport"
+            or place_result.type == "logistic-container"
+            or place_result.type == "construction-robot" then
+        -- allow user to carry one of each for mods that adds surfaces
+        return 1
     elseif item.type and item.type == "blueprint"
             or item.type == "deconstruction-item"
             or item.type == "blueprint-book"
@@ -197,6 +202,7 @@ function setupForce(force, surface, x, y)
         global.forces = {}
     end
     global.forces[force.name] = {
+        surfaces = {},
         rewires = {}
     }
     local config = global.forces[force.name]
@@ -356,11 +362,28 @@ function setupForce(force, surface, x, y)
     accumulator.energy = 5000000
     accumulator = surface.create_entity{name = "accumulator", position = {x + 8, y - 2}, force = force}
     accumulator.energy = 5000000
+
+    -- prevent adding new roboports and logistic-chest on force surface
+    config.surfaces[surface.name] = config.surfaces[surface.name] or {}
+    surface = config.surfaces[surface.name]
+    surface["roboport"] = (surface["roboport"] or 0) + 1
+    surface["logistic-chest-storage"] = (surface["logistic-chest-storage"] or 0) + 2
+
 end
 
 function convertToGhost(entity)
     if not entity or not entity.valid then
         return
+    end
+    -- permit to keep track of entity allowed on specific surfaces
+    if entity.name == "roboport"
+            or entity.name == "logistic-chest-storage" then
+        local config = global.forces[entity.force.name]
+        config.surfaces[entity.surface.name] = config.surfaces[entity.surface.name] or {}
+        surface = config.surfaces[entity.surface.name]
+        surface[entity.name] = (surface[entity.name] or 1) - 1
+        game.print(entity.surface.name.." : -"..entity.name.." : "..tostring(surface[entity.name]))
+        if surface[entity.name] == 0 then surface[entity.name] = nil end
     end
     -- replace last built entity with ghost
     local surface = entity.surface
@@ -429,11 +452,25 @@ script.on_event(defines.events.on_built_entity, function(event)
         convertToGhost(last_entity)
         global.players[event.player_index].last_built_entity = nil
     end
+
+    -- allowing the first roboport and logistic container on that surface
+    local name = entity.name
+    if entity.name == "roboport"
+            or entity.name == "logistic-chest-storage" then
+        local config = global.forces[entity.force.name]
+        config.surfaces[entity.surface.name] = config.surfaces[entity.surface.name] or {}
+        surface = config.surfaces[entity.surface.name]
+        surface[entity.name] = (surface[entity.name] or 0) + 1
+        game.print(entity.surface.name.." : +"..entity.name.." : "..tostring(surface[entity.name]))
+        if surface[entity.name] == 1 then return end
+    end
+
     if entity.type ~= "entity-ghost" and entity.type ~= "tile-ghost" then
         -- disconnect electric poles
         if entity.type == "electric-pole" then
             entity.disconnect_neighbour()
         end
+        entity.active = false -- permit to disable the entity if needed
         global.tmpstack.set_stack(player.cursor_stack)
         player.cursor_stack.set_stack(event.stack)
         local blueprintable = replaceWithBlueprint(player.cursor_stack)
@@ -480,6 +517,17 @@ script.on_event(defines.events.on_robot_built_entity, function(event)
             end
         end
         global.forces[entity.force.name].rewires[entity.position.x .. ";" .. entity.position.y] = nil
+    end
+	 -- permit to keep track of entity allowed on specific surfaces
+    local name = entity.name
+    if entity.name == "roboport"
+            or entity.name == "logistic-chest-storage" then
+        local config = global.forces[entity.force.name]
+        config.surfaces[entity.surface.name] = config.surfaces[entity.surface.name] or {}
+        surface = config.surfaces[entity.surface.name]
+        surface[entity.name] = (surface[entity.name] or 0) + 1
+        game.print(entity.surface.name.." : +"..entity.name.." : "..tostring(surface[entity.name]))
+        if surface[entity.name] == 1 then return end
     end
 end)
 
@@ -616,6 +664,30 @@ script.on_event(defines.events.on_entity_died, function(event)
     local config = global.forces[entity.force.name]
     if config and entity == config.robport then
         game.set_game_state{game_finished = true, player_won = false, can_continue = false}
+    end
+    -- permit to keep track of entity allowed on specific surfaces
+    if entity.name == "roboport"
+            or entity.name == "logistic-chest-storage" then
+        local config = global.forces[entity.force.name]
+        config.surfaces[entity.surface.name] = config.surfaces[entity.surface.name] or {}
+        surface = config.surfaces[entity.surface.name]
+        surface[entity.name] = (surface[entity.name] or 1) - 1
+        game.print(entity.surface.name.." : -"..entity.name.." : "..tostring(surface[entity.name]))
+        if surface[entity.name] == 0 then surface[entity.name] = nil end
+    end
+end)
+
+script.on_event(defines.events.on_robot_mined_entity, function(event)
+    local entity = event.entity
+	 -- permit to keep track of entity allowed on specific surfaces
+    if entity.name == "roboport"
+            or entity.name == "logistic-chest-storage" then
+        local config = global.forces[entity.force.name]
+        config.surfaces[entity.surface.name] = config.surfaces[entity.surface.name] or {}
+        surface = config.surfaces[entity.surface.name]
+        surface[entity.name] = (surface[entity.name] or 1) - 1
+        game.print(entity.surface.name.." : -"..entity.name.." : "..tostring(surface[entity.name]))
+        if surface[entity.name] == 0 then surface[entity.name] = nil end
     end
 end)
 
