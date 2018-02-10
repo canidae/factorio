@@ -509,19 +509,19 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
     end
     if cursor and cursor.valid_for_read then
         if cursor.is_deconstruction_item then
-            local was_replacing = global.players[event.player_index].replace_entity and next(global.players[event.player_index].replace_entity)
-            global.players[event.player_index].replace_entity = {}
+            local was_replacing = global.players[event.player_index].replace_entities and next(global.players[event.player_index].replace_entities)
+            global.players[event.player_index].replace_entities = {}
             for i = 11, cursor.entity_filter_count - 10 do
                 local from = cursor.get_entity_filter(i)
                 local to = cursor.get_entity_filter(i + 10)
                 if from and to then
-                    global.players[event.player_index].replace_entity[from] = to
+                    global.players[event.player_index].replace_entities[from] = to
                     -- remove "to" filter to prevent user from removing ghosts of target entity
                     cursor.set_entity_filter(i + 10, nil)
                     player.print({"replace_entity", {"entity-name." .. from}, {"entity-name." .. to}})
                 end
             end
-            if was_replacing and not next(global.players[event.player_index].replace_entity) then
+            if was_replacing and not next(global.players[event.player_index].replace_entities) then
                 player.print{"stopped_replacing"}
             end
         end
@@ -572,7 +572,7 @@ script.on_event(defines.events.on_marked_for_deconstruction, function(event)
     local entity = event.entity
     local player = game.players[event.player_index]
     if player.cursor_stack and player.cursor_stack.valid_for_read and player.cursor_stack.is_deconstruction_item then
-        if global.players[event.player_index].replace_entity and global.players[event.player_index].replace_entity[entity.name] then
+        if global.players[event.player_index].replace_entities and global.players[event.player_index].replace_entities[entity.name] then
             -- using pcall in case someone tries to create a ghost of a fish or something
             local create_ghost = function()
                 global.tmpstack.set_stack{name = "blueprint", count = 1}
@@ -582,7 +582,7 @@ script.on_event(defines.events.on_marked_for_deconstruction, function(event)
                 local blueprint = nil
                 for _, bp_entity in pairs(global.tmpstack.get_blueprint_entities()) do
                     if bp_entity.name == entity.name then
-                        bp_entity.name = global.players[event.player_index].replace_entity[entity.name]
+                        bp_entity.name = global.players[event.player_index].replace_entities[entity.name]
                         blueprint = {bp_entity}
                     end
                 end
