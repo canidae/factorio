@@ -155,7 +155,7 @@ function startNextResearch(force)
         for _, ingredient in pairs(tech.research_unit_ingredients) do
             tech_ingredients = tech_ingredients + ingredient.amount
         end
-        return tech.research_unit_count * tech.research_unit_energy * tech_ingredients * ((config.deprioritize_infinite_tech and config.infinite_research[tech.name] and 1000) or 1)
+        return math.max(tech.research_unit_count, 1) * math.max(tech.research_unit_energy, 1) * math.max(tech_ingredients, 1) * ((config.deprioritize_infinite_tech and config.infinite_research[tech.name] and 1000) or 1)
     end
 
     -- see if there are some techs we should research first
