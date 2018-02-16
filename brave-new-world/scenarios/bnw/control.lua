@@ -1,4 +1,5 @@
 local water_replace_tile = "dirt-3"
+local factory_replace_tile = "concrete"
 
 function inventoryChanged(event)
     local player = game.players[event.player_index]
@@ -97,19 +98,34 @@ function inventoryChanged(event)
 end
 
 function itemCountAllowed(name, count)
+    local item = game.item_prototypes[name]
+    local place_result = item.place_result
+            or (item.place_as_tile_result and {type="tile"})
+            or {}
     if name == "red-wire" or name == "green-wire" then
         -- need these for circuitry, one stack is enough
         return math.min(200, count)
     elseif name == "copper-cable" then
         -- need this for manually connecting poles, but don't want player to manually move stuff around so we'll limit it
         return math.min(20, count)
-    elseif name == "small-electric-pole" or name == "medium-electric-pole" or name == "big-electric-pole" or name == "substation" then
+    elseif place_result.type and place_result.type == "electric-pole" then
         -- allow user to carry one of each power pole, makes it easier to place poles at max distance
         return 1
-    elseif name == "blueprint" or name == "deconstruction-planner" or name == "blueprint-book" then
-        -- these only place ghosts
+    elseif place_result.type and place_result.type == "roboport"
+            or place_result.type == "construction-robot"
+            or (place_result.type == "logistic-container" and place_result.logistic_mode == "storage") then
+        -- allow user to carry one of each for mods that adds surfaces
+        return 1
+    elseif item.type and item.type == "blueprint"
+            or item.type == "deconstruction-item"
+            or item.type == "blueprint-book"
+            or item.type == "selection-tool" then
+        -- these only place ghosts or are utility items
         return count
-    elseif name == "locomotive" or name == "cargo-wagon" or name == "fluid-wagon" or name == "artillery-wagon" then
+    elseif place_result.type and place_result.type == "locomotive"
+            or place_result.type == "cargo-wagon"
+            or place_result.type == "fluid-wagon"
+            or place_result.type == "artillery-wagon" then
         -- locomotives and wagons must be placed manually
         return count
     elseif name == "rail" then
@@ -118,21 +134,18 @@ function itemCountAllowed(name, count)
     elseif name == "train-stop" or name == "rail-signal" or name == "rail-chain-signal" then
         -- rail stuff can't be (correctly) built directly with blueprints, allow one that we'll later replace with a ghost
         return 1
-    elseif name == "car" or name == "tank" then
+    elseif place_result.type and place_result.type == "car" then
         -- let users put down cars & tanks
         return count
-    elseif name == "landfill" or name == "cliff-explosives" then
-        -- let users fill in water and remove cliffs
-        return count
-    elseif name == "artillery-targeting-remote" then
-        -- let users use the artillery targeting remote
+    elseif place_result.type and place_result.type == "tile" then
+        -- can be used for paving. primarily esthetic feature, we'll allow one to prioritize the use of ghost
+        return 1
+    elseif name == "cliff-explosives" then
+        -- allow cliff explosives, let the user remove cliffs
         return count
     elseif name == "droid-selection-tool" then
         -- let users have the command tool for Robot Army mod (but not the pickup tool)
-        return count
-    elseif name == "outpost-builder" then
-        -- let users have an outpost planner tool
-        return count
+        return 1
     elseif string.match(name, ".*module.*") then
         -- allow modules
         return count
@@ -190,6 +203,7 @@ function setupForce(force, surface, x, y)
         global.forces = {}
     end
     global.forces[force.name] = {
+        surfaces = {},
         rewires = {}
     }
     local config = global.forces[force.name]
@@ -202,76 +216,31 @@ function setupForce(force, surface, x, y)
     force.chart(surface, {{x - 192, y - 192}, {x + 192, y + 192}})
 
     -- setup starting location
-    -- oil is rare, but mandatory to continue research. add some oil patches near spawn point
-    local xx = math.random(32, 64) * (math.random(1, 2) == 1 and 1 or -1)
-    local yy = math.random(32, 64) * (math.random(1, 2) == 1 and 1 or -1)
-    local tiles = {}
-    surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xx, yy}}
-    for xxx = xx - 2, xx + 2 do
-        for yyy = yy - 2, yy + 2 do
-            local tile = surface.get_tile(xxx, yyy)
-            local name = tile.name
-            if tile.prototype.layer <= 4 then
-                name = water_replace_tile
-            end
-            tiles[#tiles + 1] = {name = name, position = {xxx, yyy}}
-        end
-    end
-    xxx = xx + math.random(-8, 8)
-    yyy = yy - math.random(4, 8)
-    for xxxx = xxx - 2, xxx + 2 do
-        for yyyy = yyy - 2, yyy + 2 do
-            local tile = surface.get_tile(xxxx, yyyy)
-            local name = tile.name
-            if tile.prototype.layer <= 4 then
-                name = water_replace_tile
-            end
-            tiles[#tiles + 1] = {name = name, position = {xxxx, yyyy}}
-        end
-    end
-    surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xxx, yyy}}
-    xxx = xx + math.random(-8, 8)
-    yyy = yy + math.random(4, 8)
-    for xxxx = xxx - 2, xxx + 2 do
-        for yyyy = yyy - 2, yyy + 2 do
-            local tile = surface.get_tile(xxxx, yyyy)
-            local name = tile.name
-            if tile.prototype.layer <= 4 then
-                name = water_replace_tile
-            end
-            tiles[#tiles + 1] = {name = name, position = {xxxx, yyyy}}
-        end
-    end
-    surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xxx, yyy}}
-    surface.set_tiles(tiles)
-
     -- remove trees/stones/resources
-    local entities = surface.find_entities_filtered{area = {{x - 16, y - 11}, {x + 15, y + 5}}, force = "neutral"}
+    local entities = surface.find_entities_filtered{area = {{x - 14, y - 8}, {x + 17, y + 3}}, force = "neutral"}
     for _, entity in pairs(entities) do
         entity.destroy()
     end
     -- place dirt beneath structures
     tiles = {}
-    for xx = x - 14, x + 13 do
-        for yy = y - 9, y + 3 do
+    for xx = x - 13, x + 15 do
+        for yy = y - 7, y + 1 do
             local tile = surface.get_tile(xx, yy)
             local name = tile.name
-            if tile.prototype.layer <= 4 then
-                name = water_replace_tile
-            end
+            name = factory_replace_tile
             tiles[#tiles + 1] = {name = name, position = {xx, yy}}
         end
     end
     surface.set_tiles(tiles)
 
     -- place walls
-    for xx = x - 3, x + 2 do
+    for xx = x - 3, x + 5 do
         surface.create_entity{name = "stone-wall", position = {xx, y - 7}, force = force}
         surface.create_entity{name = "stone-wall", position = {xx, y + 1}, force = force}
     end
     for yy = y - 7, y + 1 do
         surface.create_entity{name = "stone-wall", position = {x - 3, yy}, force = force}
-        surface.create_entity{name = "stone-wall", position = {x + 2, yy}, force = force}
+        surface.create_entity{name = "stone-wall", position = {x + 5, yy}, force = force}
     end
     -- roboport
     config.roboport = surface.create_entity{name = "roboport", position = {x, y - 4}, force = force}
@@ -286,10 +255,17 @@ function setupForce(force, surface, x, y)
     local electric_pole = surface.create_entity{name = "medium-electric-pole", position = {x + 1, y - 2}, force = force}
     -- radar
     surface.create_entity{name = "radar", position = {x - 1, y - 1}, force = force}
+	 -- pumpjacks
+	 surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {x + 3, y -5}}
+	 surface.create_entity{name = "pumpjack", position = {x + 3, y -5}, direction = 4, force = force}
+	 surface.create_entity{name = "storage-tank", position = {x + 3, y - 2}, force = force}
+	 surface.create_entity{name = "pipe-to-ground", position = {x + 4, y}, force = force}
     -- storage chest
-    surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y - 1}, force = force}
+	 surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y}, force = force}
+	 surface.create_entity{name = "logistic-chest-storage", position = {x + 2, y}, force = force}
+	 surface.create_entity{name = "logistic-chest-storage", position = {x + 3, y}, force = force}
     -- storage chest, contains the items the force starts with
-    local chest = surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y}, force = force}
+    local chest = surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y - 1}, force = force}
     local chest_inventory = chest.get_inventory(defines.inventory.chest)
     chest_inventory.insert{name = "transport-belt", count = 400}
     chest_inventory.insert{name = "underground-belt", count = 16}
@@ -312,48 +288,55 @@ function setupForce(force, surface, x, y)
     chest_inventory.insert{name = "logistic-chest-requester", count = 4}
     chest_inventory.insert{name = "lab", count = 2}
     -- solar panels and accumulators (left side)
-    surface.create_entity{name = "solar-panel", position = {x - 11, y - 6}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x - 11, y - 3}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x - 11, y}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x - 8, y}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x - 5, y - 6}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x - 5, y}, force = force}
-    surface.create_entity{name = "medium-electric-pole", position = {x - 7, y - 4}, force = force}
-    surface.create_entity{name = "small-lamp", position = {x - 6, y - 4}, force = force}
-    local accumulator = surface.create_entity{name = "accumulator", position = {x - 8, y - 6}, force = force}
-    accumulator.energy = 5000000
-    accumulator = surface.create_entity{name = "accumulator", position = {x - 8, y - 4}, force = force}
-    accumulator.energy = 5000000
-    accumulator = surface.create_entity{name = "accumulator", position = {x - 8, y - 2}, force = force}
-    accumulator.energy = 5000000
-    accumulator = surface.create_entity{name = "accumulator", position = {x - 6, y - 2}, force = force}
-    accumulator.energy = 5000000
-    accumulator = surface.create_entity{name = "accumulator", position = {x - 4, y - 2}, force = force}
-    accumulator.energy = 5000000
+    surface.create_entity{name = "solar-panel", position = {x - 12, y - 6}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x - 12, y - 3}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x - 12, y}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x - 9, y - 6}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x - 6, y - 6}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x - 6, y}, force = force}
+    surface.create_entity{name = "medium-electric-pole", position = {x - 8, y - 2}, force = force}
+    surface.create_entity{name = "small-lamp", position = {x - 7, y - 2}, force = force}
+    surface.create_entity{name = "accumulator", position = {x - 9, y + 1}, force = force}.energy = 5000000
+    surface.create_entity{name = "accumulator", position = {x - 9, y - 1}, force = force}.energy = 5000000
+    surface.create_entity{name = "accumulator", position = {x - 9, y - 3}, force = force}.energy = 5000000
+    surface.create_entity{name = "accumulator", position = {x - 7, y - 3}, force = force}.energy = 5000000
+    surface.create_entity{name = "accumulator", position = {x - 5, y - 3}, force = force}.energy = 5000000
     -- solar panels and accumulators (right side)
-    surface.create_entity{name = "solar-panel", position = {x + 4, y - 6}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x + 4, y}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x + 7, y}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x + 10, y - 6}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x + 10, y - 3}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x + 10, y}, force = force}
-    surface.create_entity{name = "medium-electric-pole", position = {x + 6, y - 4}, force = force}
-    surface.create_entity{name = "small-lamp", position = {x + 5, y - 4}, force = force}
-    accumulator = surface.create_entity{name = "accumulator", position = {x + 4, y - 2}, force = force}
-    accumulator.energy = 5000000
-    accumulator = surface.create_entity{name = "accumulator", position = {x + 6, y - 2}, force = force}
-    accumulator.energy = 5000000
-    accumulator = surface.create_entity{name = "accumulator", position = {x + 8, y - 6}, force = force}
-    accumulator.energy = 5000000
-    accumulator = surface.create_entity{name = "accumulator", position = {x + 8, y - 4}, force = force}
-    accumulator.energy = 5000000
-    accumulator = surface.create_entity{name = "accumulator", position = {x + 8, y - 2}, force = force}
-    accumulator.energy = 5000000
+    surface.create_entity{name = "solar-panel", position = {x + 8, y - 6}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x + 8, y}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x + 11, y - 6}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x + 14, y - 6}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x + 14, y - 3}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x + 14, y}, force = force}
+    surface.create_entity{name = "medium-electric-pole", position = {x + 10, y - 2}, force = force}
+    surface.create_entity{name = "small-lamp", position = {x + 9, y - 2}, force = force}
+    surface.create_entity{name = "accumulator", position = {x + 8, y - 3}, force = force}.energy = 5000000
+    surface.create_entity{name = "accumulator", position = {x + 10, y - 3}, force = force}.energy = 5000000
+    surface.create_entity{name = "accumulator", position = {x + 12, y - 3}, force = force}.energy = 5000000
+    surface.create_entity{name = "accumulator", position = {x + 12, y - 1}, force = force}.energy = 5000000
+    surface.create_entity{name = "accumulator", position = {x + 12, y + 1}, force = force}.energy = 5000000
+
+    -- prevent adding new roboports and logistic-chest on force surface
+    config.surfaces[surface.name] = config.surfaces[surface.name] or {}
+    surface = config.surfaces[surface.name]
+    surface["roboport"] = (surface["roboport"] or 0) + 1
+    surface["logistic-chest-storage"] = (surface["logistic-chest-storage"] or 0) + 2
+
 end
 
 function convertToGhost(entity)
     if not entity or not entity.valid then
         return
+    end
+    -- permit to keep track of entity allowed on specific surfaces
+    if entity.name == "roboport"
+            or entity.name == "logistic-chest-storage" then
+        local config = global.forces[entity.force.name]
+        config.surfaces[entity.surface.name] = config.surfaces[entity.surface.name] or {}
+        surface = config.surfaces[entity.surface.name]
+        surface[entity.name] = (surface[entity.name] or 1) - 1
+        game.print(entity.surface.name.." : -"..entity.name.." : "..tostring(surface[entity.name]))
+        if surface[entity.name] == 0 then surface[entity.name] = nil end
     end
     -- replace last built entity with ghost
     local surface = entity.surface
@@ -422,11 +405,25 @@ script.on_event(defines.events.on_built_entity, function(event)
         convertToGhost(last_entity)
         global.players[event.player_index].last_built_entity = nil
     end
+
+    -- allowing the first roboport and logistic container on that surface
+    local name = entity.name
+    if entity.name == "roboport"
+            or entity.name == "logistic-chest-storage" then
+        local config = global.forces[entity.force.name]
+        config.surfaces[entity.surface.name] = config.surfaces[entity.surface.name] or {}
+        surface = config.surfaces[entity.surface.name]
+        surface[entity.name] = (surface[entity.name] or 0) + 1
+        game.print(entity.surface.name.." : +"..entity.name.." : "..tostring(surface[entity.name]))
+        if surface[entity.name] == 1 then return end
+    end
+
     if entity.type ~= "entity-ghost" and entity.type ~= "tile-ghost" then
         -- disconnect electric poles
         if entity.type == "electric-pole" then
             entity.disconnect_neighbour()
         end
+        entity.active = false -- permit to disable the entity if needed
         global.tmpstack.set_stack(player.cursor_stack)
         player.cursor_stack.set_stack(event.stack)
         local blueprintable = replaceWithBlueprint(player.cursor_stack)
@@ -473,6 +470,17 @@ script.on_event(defines.events.on_robot_built_entity, function(event)
             end
         end
         global.forces[entity.force.name].rewires[entity.position.x .. ";" .. entity.position.y] = nil
+    end
+	 -- permit to keep track of entity allowed on specific surfaces
+    local name = entity.name
+    if entity.name == "roboport"
+            or entity.name == "logistic-chest-storage" then
+        local config = global.forces[entity.force.name]
+        config.surfaces[entity.surface.name] = config.surfaces[entity.surface.name] or {}
+        surface = config.surfaces[entity.surface.name]
+        surface[entity.name] = (surface[entity.name] or 0) + 1
+        game.print(entity.surface.name.." : +"..entity.name.." : "..tostring(surface[entity.name]))
+        if surface[entity.name] == 1 then return end
     end
 end)
 
@@ -610,6 +618,30 @@ script.on_event(defines.events.on_entity_died, function(event)
     if config and entity == config.robport then
         game.set_game_state{game_finished = true, player_won = false, can_continue = false}
     end
+    -- permit to keep track of entity allowed on specific surfaces
+    if entity.name == "roboport"
+            or entity.name == "logistic-chest-storage" then
+        local config = global.forces[entity.force.name]
+        config.surfaces[entity.surface.name] = config.surfaces[entity.surface.name] or {}
+        surface = config.surfaces[entity.surface.name]
+        surface[entity.name] = (surface[entity.name] or 1) - 1
+        game.print(entity.surface.name.." : -"..entity.name.." : "..tostring(surface[entity.name]))
+        if surface[entity.name] == 0 then surface[entity.name] = nil end
+    end
+end)
+
+script.on_event(defines.events.on_robot_mined_entity, function(event)
+    local entity = event.entity
+	 -- permit to keep track of entity allowed on specific surfaces
+    if entity.name == "roboport"
+            or entity.name == "logistic-chest-storage" then
+        local config = global.forces[entity.force.name]
+        config.surfaces[entity.surface.name] = config.surfaces[entity.surface.name] or {}
+        surface = config.surfaces[entity.surface.name]
+        surface[entity.name] = (surface[entity.name] or 1) - 1
+        game.print(entity.surface.name.." : -"..entity.name.." : "..tostring(surface[entity.name]))
+        if surface[entity.name] == 0 then surface[entity.name] = nil end
+    end
 end)
 
 script.on_event(defines.events.on_sector_scanned, function(event)
@@ -629,7 +661,6 @@ script.on_event(defines.events.on_sector_scanned, function(event)
         config.explore_boundary[2][2] = y
     end
 end)
-
 script.on_event(defines.events.on_tick, function(event)
     for _, player in pairs(game.players) do
         local config = global.forces[player.force.name]
