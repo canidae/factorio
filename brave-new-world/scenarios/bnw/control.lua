@@ -99,8 +99,9 @@ end
 function itemCountAllowed(name, count, player)
     local item = game.item_prototypes[name]
     local place_type = item.place_result and item.place_result.type
-    if name == "upgrade-builder2" then
+    if name == "upgrade-builder2" or name == "droid-pickup-tool" then
         -- the upgrade planner isn't allowed, it upgrades stuff for free in cheat mode
+        -- the droid pickup tool from Robot Army breaks some of the immersion in this scenario and is thus banned
         player.print({"item_not_allowed"})
         return 0
     elseif name == "red-wire" or name == "green-wire" then
