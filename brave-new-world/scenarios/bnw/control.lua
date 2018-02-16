@@ -4,7 +4,7 @@ function inventoryChanged(event)
     local player = game.players[event.player_index]
     -- remove any crafted items (and possibly make blueprint of item on cursor)
     for _, stack in pairs(global.players[event.player_index].crafted) do
-        if itemCountAllowed(stack.name, stack.count) == 0 then
+        if itemCountAllowed(stack.name, stack.count, player) == 0 then
             -- not allowed to carry item, but can we make a blueprint of it?
             if player.clean_cursor() then
                 player.cursor_stack.set_stack(stack)
@@ -53,7 +53,7 @@ function inventoryChanged(event)
     global.players[event.player_index].inventory_items = items
 
     for name, item in pairs(items) do
-        local allowed = itemCountAllowed(name, item.count)
+        local allowed = itemCountAllowed(name, item.count, player)
         local to_remove = item.count - allowed
         if to_remove > 0 then
             local entity = player.selected or player.opened
@@ -96,30 +96,26 @@ function inventoryChanged(event)
     end
 end
 
-function itemCountAllowed(name, count)
+function itemCountAllowed(name, count, player)
     local item = game.item_prototypes[name]
-    local place_result = item.place_result
-            or (item.place_as_tile_result and {type="tile"})
-            or {}
-    if name == "red-wire" or name == "green-wire" then
+    local place_type = item.place_result and item.place_result.type
+    if name == "upgrade-builder2" then
+        -- the upgrade planner isn't allowed, it upgrades stuff for free in cheat mode
+        player.print({"item_not_allowed"})
+        return 0
+    elseif name == "red-wire" or name == "green-wire" then
         -- need these for circuitry, one stack is enough
         return math.min(200, count)
     elseif name == "copper-cable" then
         -- need this for manually connecting poles, but don't want player to manually move stuff around so we'll limit it
         return math.min(20, count)
-    elseif place_result.type and place_result.type == "electric-pole" then
+    elseif place_type == "electric-pole" then
         -- allow user to carry one of each power pole, makes it easier to place poles at max distance
         return 1
-    elseif item.type and item.type == "blueprint"
-            or item.type == "deconstruction-item"
-            or item.type == "blueprint-book"
-            or item.type == "selection-tool" then
+    elseif item.type == "blueprint" or item.type == "deconstruction-item" or item.type == "blueprint-book" or item.type == "selection-tool" then
         -- these only place ghosts or are utility items
         return count
-    elseif place_result.type and place_result.type == "locomotive"
-            or place_result.type == "cargo-wagon"
-            or place_result.type == "fluid-wagon"
-            or place_result.type == "artillery-wagon" then
+    elseif place_type == "locomotive" or place_type == "cargo-wagon" or place_type == "fluid-wagon" or place_type == "artillery-wagon" then
         -- locomotives and wagons must be placed manually
         return count
     elseif name == "rail" then
@@ -128,18 +124,12 @@ function itemCountAllowed(name, count)
     elseif name == "train-stop" or name == "rail-signal" or name == "rail-chain-signal" then
         -- rail stuff can't be (correctly) built directly with blueprints, allow one that we'll later replace with a ghost
         return 1
-    elseif place_result.type and place_result.type == "car" then
+    elseif place_type == "car" then
         -- let users put down cars & tanks
         return count
-    elseif place_result.type and place_result.type == "tile" then
-        -- can be used for paving. primarily esthetic feature, we'll allow one to prioritize the use of ghost
-        return 1
-    elseif name == "cliff-explosives" then
-        -- allow cliff explosives, let the user remove cliffs
+    elseif name == "landfill" or name == "cliff-explosives" then
+        -- let users fill in water and remove cliffs
         return count
-    elseif name == "droid-selection-tool" then
-        -- let users have the command tool for Robot Army mod (but not the pickup tool)
-        return 1
     elseif string.match(name, ".*module.*") then
         -- allow modules
         return count
@@ -485,13 +475,18 @@ end)
 
 script.on_event(defines.events.on_player_crafted_item, function(event)
     local crafted = global.players[event.player_index].crafted
+    local item = game.item_prototypes[event.item_stack.name or ""]
+    if item.type == "blueprint" or item.type == "deconstruction-item" or item.type == "blueprint-book" or item.type == "selection-tool" then
+        -- let user craft these items
+        return
+    end
     crafted[#crafted + 1] = event.item_stack
 end)
 
 script.on_event(defines.events.on_player_pipette, function(event)
     local player = game.players[event.player_index]
     local name = player.cursor_stack.name
-    if itemCountAllowed(name, player.cursor_stack.count) > 0 then
+    if itemCountAllowed(name, player.cursor_stack.count, player) > 0 then
         -- some entities may be carried, but only allow pipetting if player got item in inventory (or cheat mode will make some)
         if not global.players[event.player_index].inventory_items[name] then
             player.cursor_stack.clear()
@@ -532,7 +527,7 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
                 player.print{"stopped_replacing"}
             end
         end
-        local count_remaining = itemCountAllowed(cursor.name, cursor.count)
+        local count_remaining = itemCountAllowed(cursor.name, cursor.count, player)
         local to_remove = cursor.count - count_remaining
         if to_remove > 0 then
             local entity = player.opened or player.selected
