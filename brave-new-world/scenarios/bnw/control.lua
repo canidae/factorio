@@ -202,8 +202,8 @@ function setupForce(force, surface, x, y)
 
     -- setup starting location
     -- oil is rare, but mandatory to continue research. add some oil patches near spawn point
-    local xx = math.random(32, 64) * (math.random(1, 2) == 1 and 1 or -1)
-    local yy = math.random(32, 64) * (math.random(1, 2) == 1 and 1 or -1)
+    local xx = math.random(16, 32) * (math.random(1, 2) == 1 and 1 or -1)
+    local yy = math.random(16, 32) * (math.random(1, 2) == 1 and 1 or -1)
     local tiles = {}
     surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xx, yy}}
     for xxx = xx - 2, xx + 2 do
