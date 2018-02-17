@@ -147,7 +147,8 @@ function replaceWithBlueprint(item_stack, direction)
         if place_entity then
             local width = (math.ceil(place_entity.selection_box.right_bottom.x * 2) % 2) / 2 - 0.5
             local height = (math.ceil(place_entity.selection_box.right_bottom.y * 2) % 2) / 2 - 0.5
-            if direction and direction % 4 == 2 then
+            direction = direction or defines.direction.north
+            if direction % 4 == 2 then
                 -- entity is rotated, swap width & height
                 local tmp = width
                 width = height
@@ -441,11 +442,11 @@ script.on_event(defines.events.on_built_entity, function(event)
         end
     elseif player.cursor_stack and player.cursor_stack.valid_for_read and player.cursor_stack.is_blueprint then
         -- if player holds blueprint of pipe or underground belt, rotate blueprint
-        local entities = player.cursor_stack.get_blueprint_entities()
-        if entities and #entities == 1 then
-            local direction = entities.direction or 0
-            local name = entities[1].name
-            if name == "pipe-to-ground" or name == "underground-belt" or name == "fast-underground-belt" or name == "express-underground-belt" then
+        local name = player.cursor_stack.label
+        if name == "pipe-to-ground" or name == "underground-belt" or name == "fast-underground-belt" or name == "express-underground-belt" then
+            local entities = player.cursor_stack.get_blueprint_entities()
+            if entities and #entities == 1 then
+                local direction = entities.direction or 0
                 entities[1].direction = ((entities[1].direction or 0) + 4) % 8
                 player.cursor_stack.set_blueprint_entities(entities)
             end
@@ -493,7 +494,7 @@ script.on_event(defines.events.on_player_pipette, function(event)
             player.cursor_stack.clear()
         end
     else
-        if not replaceWithBlueprint(player.cursor_stack, (player.selected and player.selected.direction) or nil) then
+        if not replaceWithBlueprint(player.cursor_stack, player.selected and player.selected.direction) then
             player.cursor_stack.clear()
         end
     end
