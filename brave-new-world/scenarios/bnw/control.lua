@@ -245,14 +245,14 @@ function setupForce(force, surface, x, y)
     surface.set_tiles(tiles)
 
     -- remove trees/stones/resources
-    local entities = surface.find_entities_filtered{area = {{x - 16, y - 11}, {x + 15, y + 5}}, force = "neutral"}
+    local entities = surface.find_entities_filtered{area = {{x - 16, y - 8}, {x + 15, y + 8}}, force = "neutral"}
     for _, entity in pairs(entities) do
         entity.destroy()
     end
     -- place dirt beneath structures
     tiles = {}
     for xx = x - 14, x + 13 do
-        for yy = y - 9, y + 3 do
+        for yy = y - 6, y + 6 do
             local tile = surface.get_tile(xx, yy)
             local name = tile.name
             if tile.prototype.layer <= 4 then
@@ -265,15 +265,15 @@ function setupForce(force, surface, x, y)
 
     -- place walls
     for xx = x - 3, x + 2 do
-        surface.create_entity{name = "stone-wall", position = {xx, y - 7}, force = force}
-        surface.create_entity{name = "stone-wall", position = {xx, y + 1}, force = force}
+        surface.create_entity{name = "stone-wall", position = {xx, y - 4}, force = force}
+        surface.create_entity{name = "stone-wall", position = {xx, y + 4}, force = force}
     end
-    for yy = y - 7, y + 1 do
+    for yy = y - 4, y + 4 do
         surface.create_entity{name = "stone-wall", position = {x - 3, yy}, force = force}
         surface.create_entity{name = "stone-wall", position = {x + 2, yy}, force = force}
     end
     -- roboport
-    config.roboport = surface.create_entity{name = "roboport", position = {x, y - 4}, force = force}
+    config.roboport = surface.create_entity{name = "roboport", position = {x, y - 1}, force = force}
     config.roboport.minable = false
     config.roboport.energy = 100000000
     local roboport_inventory = config.roboport.get_inventory(defines.inventory.roboport_robot)
@@ -282,13 +282,13 @@ function setupForce(force, surface, x, y)
     roboport_inventory = config.roboport.get_inventory(defines.inventory.roboport_material)
     roboport_inventory.insert{name = "repair-pack", count = 10}
     -- electric pole
-    local electric_pole = surface.create_entity{name = "medium-electric-pole", position = {x + 1, y - 2}, force = force}
+    local electric_pole = surface.create_entity{name = "medium-electric-pole", position = {x + 1, y + 1}, force = force}
     -- radar
-    surface.create_entity{name = "radar", position = {x - 1, y - 1}, force = force}
+    surface.create_entity{name = "radar", position = {x - 1, y + 2}, force = force}
     -- storage chest
-    surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y - 1}, force = force}
+    surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y + 2}, force = force}
     -- storage chest, contains the items the force starts with
-    local chest = surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y}, force = force}
+    local chest = surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y + 3}, force = force}
     local chest_inventory = chest.get_inventory(defines.inventory.chest)
     chest_inventory.insert{name = "transport-belt", count = 400}
     chest_inventory.insert{name = "underground-belt", count = 16}
@@ -311,42 +311,42 @@ function setupForce(force, surface, x, y)
     chest_inventory.insert{name = "logistic-chest-requester", count = 4}
     chest_inventory.insert{name = "lab", count = 2}
     -- solar panels and accumulators (left side)
-    surface.create_entity{name = "solar-panel", position = {x - 11, y - 6}, force = force}
     surface.create_entity{name = "solar-panel", position = {x - 11, y - 3}, force = force}
     surface.create_entity{name = "solar-panel", position = {x - 11, y}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x - 8, y}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x - 5, y - 6}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x - 5, y}, force = force}
-    surface.create_entity{name = "medium-electric-pole", position = {x - 7, y - 4}, force = force}
-    surface.create_entity{name = "small-lamp", position = {x - 6, y - 4}, force = force}
-    local accumulator = surface.create_entity{name = "accumulator", position = {x - 8, y - 6}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x - 11, y + 3}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x - 8, y + 3}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x - 5, y - 3}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x - 5, y + 3}, force = force}
+    surface.create_entity{name = "medium-electric-pole", position = {x - 7, y - 1}, force = force}
+    surface.create_entity{name = "small-lamp", position = {x - 6, y - 1}, force = force}
+    local accumulator = surface.create_entity{name = "accumulator", position = {x - 8, y - 3}, force = force}
     accumulator.energy = 5000000
-    accumulator = surface.create_entity{name = "accumulator", position = {x - 8, y - 4}, force = force}
+    accumulator = surface.create_entity{name = "accumulator", position = {x - 8, y - 1}, force = force}
     accumulator.energy = 5000000
-    accumulator = surface.create_entity{name = "accumulator", position = {x - 8, y - 2}, force = force}
+    accumulator = surface.create_entity{name = "accumulator", position = {x - 8, y + 1}, force = force}
     accumulator.energy = 5000000
-    accumulator = surface.create_entity{name = "accumulator", position = {x - 6, y - 2}, force = force}
+    accumulator = surface.create_entity{name = "accumulator", position = {x - 6, y + 1}, force = force}
     accumulator.energy = 5000000
-    accumulator = surface.create_entity{name = "accumulator", position = {x - 4, y - 2}, force = force}
+    accumulator = surface.create_entity{name = "accumulator", position = {x - 4, y + 1}, force = force}
     accumulator.energy = 5000000
     -- solar panels and accumulators (right side)
-    surface.create_entity{name = "solar-panel", position = {x + 4, y - 6}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x + 4, y}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x + 7, y}, force = force}
-    surface.create_entity{name = "solar-panel", position = {x + 10, y - 6}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x + 4, y - 3}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x + 4, y + 3}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x + 7, y + 3}, force = force}
     surface.create_entity{name = "solar-panel", position = {x + 10, y - 3}, force = force}
     surface.create_entity{name = "solar-panel", position = {x + 10, y}, force = force}
-    surface.create_entity{name = "medium-electric-pole", position = {x + 6, y - 4}, force = force}
-    surface.create_entity{name = "small-lamp", position = {x + 5, y - 4}, force = force}
-    accumulator = surface.create_entity{name = "accumulator", position = {x + 4, y - 2}, force = force}
+    surface.create_entity{name = "solar-panel", position = {x + 10, y + 3}, force = force}
+    surface.create_entity{name = "medium-electric-pole", position = {x + 6, y - 1}, force = force}
+    surface.create_entity{name = "small-lamp", position = {x + 5, y - 1}, force = force}
+    accumulator = surface.create_entity{name = "accumulator", position = {x + 4, y + 1}, force = force}
     accumulator.energy = 5000000
-    accumulator = surface.create_entity{name = "accumulator", position = {x + 6, y - 2}, force = force}
+    accumulator = surface.create_entity{name = "accumulator", position = {x + 6, y + 1}, force = force}
     accumulator.energy = 5000000
-    accumulator = surface.create_entity{name = "accumulator", position = {x + 8, y - 6}, force = force}
+    accumulator = surface.create_entity{name = "accumulator", position = {x + 8, y - 3}, force = force}
     accumulator.energy = 5000000
-    accumulator = surface.create_entity{name = "accumulator", position = {x + 8, y - 4}, force = force}
+    accumulator = surface.create_entity{name = "accumulator", position = {x + 8, y - 1}, force = force}
     accumulator.energy = 5000000
-    accumulator = surface.create_entity{name = "accumulator", position = {x + 8, y - 2}, force = force}
+    accumulator = surface.create_entity{name = "accumulator", position = {x + 8, y + 1}, force = force}
     accumulator.energy = 5000000
 end
 
