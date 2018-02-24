@@ -82,13 +82,16 @@ function inventoryChanged(event)
                 end
             end
             local remaining = to_remove - inserted
+            local spill_entity = entity or global.forces[player.force.name].roboport
+            remaining = remaining - (remaining > 0 and spill_entity.insert({name = name, count = remaining}) or 0)
             if remaining > 0 then
-                local insert_into = (entity and entity.logistic_network and entity) or global.forces[player.force.name].roboport
-                remaining = remaining - (insert_into.logistic_network and insert_into.logistic_network.insert({name = name, count = remaining}, "storage") or 0)
-                if remaining > 0 then
-                    -- network storage is full, explode items around entity
-                    player.print({"out-of-storage"})
-                    insert_into.surface.spill_item_stack(insert_into.position, {name = name, count = remaining})
+                -- player is not allowed to pick up stuff
+                spill_entity.surface.spill_item_stack(spill_entity.position, {name = name, count = remaining})
+                -- mark spilled items for deconstruction/pickup
+                local pos = spill_entity.position
+                local spilled = spill_entity.surface.find_entities_filtered{area = {{pos.x - 16, pos.y - 16}, {pos.x + 16, pos.y + 16}}, force = "neutral", type = "item-entity"}
+                for _, item in pairs(spilled) do
+                    item.order_deconstruction(spill_entity.force)
                 end
             end
             player.remove_item{name = name, count = to_remove}
