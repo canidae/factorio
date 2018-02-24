@@ -84,7 +84,7 @@ function inventoryChanged(event)
             local remaining = to_remove - inserted
             if remaining > 0 then
                 local insert_into = (entity and entity.logistic_network and entity) or global.forces[player.force.name].roboport
-                remaining = remaining - insert_into.logistic_network.insert({name = name, count = remaining}, "storage")
+                remaining = remaining - (insert_into.logistic_network and insert_into.logistic_network.insert({name = name, count = remaining}, "storage") or 0)
                 if remaining > 0 then
                     -- network storage is full, explode items around entity
                     player.print({"out-of-storage"})
