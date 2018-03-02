@@ -113,6 +113,9 @@ function itemCountAllowed(name, count, player)
     elseif name == "copper-cable" then
         -- need this for manually connecting poles, but don't want player to manually move stuff around so we'll limit it
         return math.min(20, count)
+    elseif place_type == "pipe-to-ground" then
+        -- allow user to carry one pipe-to-ground, makes it easier to place underground pipes at max distance
+        return 1
     elseif place_type == "electric-pole" then
         -- allow user to carry one of each power pole, makes it easier to place poles at max distance
         return 1
@@ -195,9 +198,6 @@ function setupForce(force, surface, x, y)
         rewires = {}
     }
     local config = global.forces[force.name]
-    -- prevent mining and crafting
-    force.manual_mining_speed_modifier = -0.99999999 -- allows removing ghosts with right-click
-    force.manual_crafting_speed_modifier = -1
 
     -- setup exploration boundary
     config.explore_boundary = {{x - 96, y - 96}, {x + 96, y + 96}}
@@ -639,6 +639,9 @@ end)
 
 script.on_event(defines.events.on_tick, function(event)
     for _, player in pairs(game.players) do
+        -- prevent mining and crafting (this appeared to be reset when loading a 0.16.26 save in 0.16.27)
+        player.force.manual_mining_speed_modifier = -0.99999999 -- allows removing ghosts with right-click
+
         local config = global.forces[player.force.name]
         -- prevent player from exploring
         local teleport = player.vehicle and player.vehicle.position or player.position
