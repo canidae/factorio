@@ -119,7 +119,7 @@ function itemCountAllowed(name, count, player)
     elseif place_type == "electric-pole" then
         -- allow user to carry one of each power pole, makes it easier to place poles at max distance
         return 1
-    elseif item.type == "blueprint" or item.type == "deconstruction-item" or item.type == "blueprint-book" or item.type == "selection-tool" then
+    elseif item.type == "blueprint" or item.type == "deconstruction-item" or item.type == "blueprint-book" or item.type == "selection-tool" or name == "artillery-targeting-remote" then
         -- these only place ghosts or are utility items
         return count
     elseif place_type == "locomotive" or place_type == "cargo-wagon" or place_type == "fluid-wagon" or place_type == "artillery-wagon" then
