@@ -637,28 +637,27 @@ script.on_event(defines.events.on_sector_scanned, function(event)
     end
 end)
 
-script.on_event(defines.events.on_tick, function(event)
-    for _, player in pairs(game.players) do
-        -- prevent mining and crafting (this appeared to be reset when loading a 0.16.26 save in 0.16.27)
-        player.force.manual_mining_speed_modifier = -0.99999999 -- allows removing ghosts with right-click
+script.on_event(defines.events.on_player_changed_position, function(event)
+    local player = game.players[event.player_index]
+    -- prevent mining and crafting (this appeared to be reset when loading a 0.16.26 save in 0.16.27)
+    player.force.manual_mining_speed_modifier = -0.99999999 -- allows removing ghosts with right-click
 
-        local config = global.forces[player.force.name]
-        -- prevent player from exploring
-        local teleport = player.vehicle and player.vehicle.position or player.position
-        if teleport.x < config.explore_boundary[1][1] then
-            teleport.x = config.explore_boundary[1][1]
-        elseif teleport.x > config.explore_boundary[2][1] then
-            teleport.x = config.explore_boundary[2][1]
-        end
-        if teleport.y < config.explore_boundary[1][2] then
-            teleport.y = config.explore_boundary[1][2]
-        elseif teleport.y > config.explore_boundary[2][2] then
-            teleport.y = config.explore_boundary[2][2]
-        end
-        if player.vehicle then
-            player.vehicle.teleport(teleport)
-        else
-            player.teleport(teleport)
-        end
+    local config = global.forces[player.force.name]
+    -- prevent player from exploring
+    local teleport = player.vehicle and player.vehicle.position or player.position
+    if teleport.x < config.explore_boundary[1][1] then
+        teleport.x = config.explore_boundary[1][1]
+    elseif teleport.x > config.explore_boundary[2][1] then
+        teleport.x = config.explore_boundary[2][1]
+    end
+    if teleport.y < config.explore_boundary[1][2] then
+        teleport.y = config.explore_boundary[1][2]
+    elseif teleport.y > config.explore_boundary[2][2] then
+        teleport.y = config.explore_boundary[2][2]
+    end
+    if player.vehicle then
+        player.vehicle.teleport(teleport)
+    else
+        player.teleport(teleport)
     end
 end)
