@@ -194,6 +194,10 @@ function setupForce(force, surface, x, y)
     if not global.forces then
         global.forces = {}
     end
+    if global.forces[force.name] then
+        -- force already exist
+        return
+    end
     global.forces[force.name] = {
         rewires = {}
     }
