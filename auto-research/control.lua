@@ -351,6 +351,7 @@ gui = {
         elseif name == "auto_research_search_text" then
             if event.button == defines.mouse_button_type.right then
                 player.gui.top.auto_research_gui.flow.searchflow.auto_research_search_text.text = ""
+                gui.updateSearchResult(player, player.gui.top.auto_research_gui.flow.searchflow.auto_research_search_text.text)
             end
         else
             local prefix, name = string.match(name, "^auto_research_([^-]*)-(.*)$")
