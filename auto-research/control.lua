@@ -23,9 +23,6 @@ function getConfig(force, config_changed)
 
         -- Print researched technology
         setAnnounceCompletedResearch(force, true)
-
-        -- Filter search results by ingredients
-        global.auto_research_config[force.name].filter_search_results = true
     end
     if config_changed or not global.auto_research_config[force.name].allowed_ingredients or not global.auto_research_config[force.name].infinite_research then
         -- remember any old ingredients
