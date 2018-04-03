@@ -529,7 +529,7 @@ gui = {
                                     -- elseif string.find(string.lower(game.item_prototypes[product.name].localised_name), text, 1, true) then
                                     --     -- show techs that match by unlocked recipe product localised name
                                     --     showtech = true
-                                    elseif game.item_prototypes[product.name].place_result then
+                                    elseif game.item_prototypes[product.name] and game.item_prototypes[product.name].place_result then
                                         if string.find(game.item_prototypes[product.name].place_result.name, text, 1, true) then
                                             -- show techs that match by unlocked recipe product placed entity name
                                             showtech = true
@@ -537,7 +537,7 @@ gui = {
                                         --     -- show techs that match by unlocked recipe product placed entity localised name
                                         --     showtech = true
                                         end
-                                    elseif game.item_prototypes[product.name].place_as_equipment_result then
+                                    elseif game.item_prototypes[product.name] and game.item_prototypes[product.name].place_as_equipment_result then
                                         if string.find(game.item_prototypes[product.name].place_as_equipment_result.name, text, 1, true) then
                                             -- show techs that match by unlocked recipe product placed equipment name
                                             showtech = true
@@ -545,7 +545,7 @@ gui = {
                                         --     -- show techs that match by unlocked recipe product placed equipment localised name
                                         --     showtech = true
                                         end
-                                    elseif game.item_prototypes[product.name].place_as_tile_result then
+                                    elseif game.item_prototypes[product.name] and game.item_prototypes[product.name].place_as_tile_result then
                                         if string.find(game.item_prototypes[product.name].place_as_tile_result.result.name, text, 1, true) then
                                             -- show techs that match by unlocked recipe product placed tile name
                                             showtech = true
