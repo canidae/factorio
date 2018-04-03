@@ -23,6 +23,9 @@ function getConfig(force, config_changed)
 
         -- Print researched technology
         setAnnounceCompletedResearch(force, true)
+
+        -- Filter search results by ingredients
+        global.auto_research_config[force.name].filter_search_results = true
     end
     if config_changed or not global.auto_research_config[force.name].allowed_ingredients or not global.auto_research_config[force.name].infinite_research then
         -- remember any old ingredients
@@ -330,14 +333,7 @@ gui = {
                 name = "auto_research_ingredients_filter_search_results",
                 caption = {"auto_research_gui.ingredients_filter_search_results"},
                 tooltip = {"auto_research_gui.ingredients_filter_search_results_tooltip"},
-                state = true
-            }
-            searchoptionsflow.add{
-                type = "checkbox",
-                name = "auto_research_show_all_search_results",
-                caption = {"auto_research_gui.show_all_search_results"},
-                tooltip = {"auto_research_gui.show_all_search_results_tooltip"},
-                state = false
+                state = config.filter_search_results or false
             }
             local search = frameflow.add{
                 type = "scroll-pane",
@@ -373,8 +369,8 @@ gui = {
                 player.gui.top.auto_research_gui.flow.searchflow.auto_research_search_text.text = ""
                 gui.updateSearchResult(player, player.gui.top.auto_research_gui.flow.searchflow.auto_research_search_text.text)
             end
-        elseif name == "auto_research_ingredients_filter_search_results" or
-               name == "auto_research_show_all_search_results" then
+        elseif name == "auto_research_ingredients_filter_search_results" then
+            config.filter_search_results = event.element.state
             gui.updateSearchResult(player, player.gui.top.auto_research_gui.flow.searchflow.auto_research_search_text.text)
         else
             local prefix, name = string.match(name, "^auto_research_([^-]*)-(.*)$")
@@ -492,7 +488,6 @@ gui = {
             direction = "vertical"
         }
         local ingredients_filter = player.gui.top.auto_research_gui.flow.searchoptionsflow.auto_research_ingredients_filter_search_results.state
-        local max_shown = player.gui.top.auto_research_gui.flow.searchoptionsflow.auto_research_show_all_search_results.state and math.huge or 30
         local config
         if ingredients_filter then
             config = getConfig(player.force)
@@ -529,29 +524,34 @@ gui = {
                                     -- elseif string.find(string.lower(game.item_prototypes[product.name].localised_name), text, 1, true) then
                                     --     -- show techs that match by unlocked recipe product localised name
                                     --     showtech = true
-                                    elseif game.item_prototypes[product.name].place_result then
-                                        if string.find(game.item_prototypes[product.name].place_result.name, text, 1, true) then
-                                            -- show techs that match by unlocked recipe product placed entity name
-                                            showtech = true
-                                        -- elseif string.find(string.lower(game.entity_prototypes[game.item_prototypes[product.name].place_result.name].localised_name), text, 1, true) then
-                                        --     -- show techs that match by unlocked recipe product placed entity localised name
-                                        --     showtech = true
-                                        end
-                                    elseif game.item_prototypes[product.name].place_as_equipment_result then
-                                        if string.find(game.item_prototypes[product.name].place_as_equipment_result.name, text, 1, true) then
-                                            -- show techs that match by unlocked recipe product placed equipment name
-                                            showtech = true
-                                        -- elseif string.find(string.lower(game.equipment_prototypes[game.item_prototypes[product.name].place_as_equipment_result.name].localised_name), text, 1, true) then
-                                        --     -- show techs that match by unlocked recipe product placed equipment localised name
-                                        --     showtech = true
-                                        end
-                                    elseif game.item_prototypes[product.name].place_as_tile_result then
-                                        if string.find(game.item_prototypes[product.name].place_as_tile_result.result.name, text, 1, true) then
-                                            -- show techs that match by unlocked recipe product placed tile name
-                                            showtech = true
-                                        -- elseif string.find(string.lower(game.item_prototypes[product.name].place_as_tile_result.result.localised_name), text, 1, true) then
-                                        --     -- show techs that match by unlocked recipe product placed tile localised name
-                                        --     showtech = true
+                                    else
+                                        local prototype = game.item_prototypes[product.name]
+                                        if prototype then
+                                            if prototype.place_result then
+                                                if string.find(prototype.place_result.name, text, 1, true) then
+                                                    -- show techs that match by unlocked recipe product placed entity name
+                                                    showtech = true
+                                                -- elseif string.find(string.lower(game.entity_prototypes[prototype.place_result.name].localised_name), text, 1, true) then
+                                                --     -- show techs that match by unlocked recipe product placed entity localised name
+                                                --     showtech = true
+                                                end
+                                            elseif prototype.place_as_equipment_result then
+                                                if string.find(prototype.place_as_equipment_result.name, text, 1, true) then
+                                                    -- show techs that match by unlocked recipe product placed equipment name
+                                                    showtech = true
+                                                -- elseif string.find(string.lower(game.equipment_prototypes[prototype.place_as_equipment_result.name].localised_name), text, 1, true) then
+                                                --     -- show techs that match by unlocked recipe product placed equipment localised name
+                                                --     showtech = true
+                                                end
+                                            elseif prototype.place_as_tile_result then
+                                                if string.find(prototype.place_as_tile_result.result.name, text, 1, true) then
+                                                    -- show techs that match by unlocked recipe product placed tile name
+                                                    showtech = true
+                                                -- elseif string.find(string.lower(prototype.place_as_tile_result.result.localised_name), text, 1, true) then
+                                                --     -- show techs that match by unlocked recipe product placed tile localised name
+                                                --     showtech = true
+                                                end
+                                            end
                                         end
                                     end
                                 end
@@ -582,9 +582,6 @@ gui = {
                         entryflow.add{type = "sprite", style = "auto_research_sprite", sprite = sprite}
                     end
                 end
-            end
-            if shown >= max_shown then
-                break
             end
         end
     end
