@@ -137,6 +137,9 @@ function itemCountAllowed(name, count, player)
     elseif name == "landfill" or name == "cliff-explosives" then
         -- let users fill in water and remove cliffs
         return count
+    elseif item.place_as_equipment_result then
+        -- let user carry equipment
+        return count
     elseif string.match(name, ".*module.*") then
         -- allow modules
         return count

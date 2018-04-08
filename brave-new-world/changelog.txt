@@ -1,0 +1,34 @@
+---------------------------------------------------------------------------------------------------
+Version: 2.0.3
+Date: 08. 04. 2018
+  Changes:
+    - Player is now allowed to carry equipment, to better accomodate mods that add equipment grids to vehicles.
+  Bugfixes:
+    - Typo caused game to not end when starting roboport was destroyed, discovered by GitHub user credomane.
+---------------------------------------------------------------------------------------------------
+Version: 2.0.2
+Date: 03. 04. 2018
+  Bugfixes:
+    - Duplicates of buildings where created when multiple players joined the game, this should no longer happen.
+---------------------------------------------------------------------------------------------------
+Version: 2.0.1
+Date: 20. 03. 2018
+  Changes:
+    - Factorio 0.16.31 fixed an issue with the event for player moved, BNW now uses this event instead of on_tick (performance improvement).
+---------------------------------------------------------------------------------------------------
+Version: 2.0.0
+Date: 17. 03. 2018
+  Changes:
+    - Major overhaul of code.
+    - Instead of carrying one of each items, you get blueprints of placeable structures. There are some exceptions, like power poles and underground pipes (but not underground belts, as these cause issues). These exceptions exist to improve the game experience, such as placing power poles at max distance.
+---------------------------------------------------------------------------------------------------
+Version: 1.0.1
+Date: 03. 01. 2018
+  Changes:
+    - You're now allowed to carry one Squad Selection Tool from the Robot Army mod (but not the pickup tool).
+    - Changed scenario name to include "BNW <version>" and not just version number. This is due to how custom scenarios are displayed (it would only show version number).
+---------------------------------------------------------------------------------------------------
+Version: 1.0.0
+Date: 02. 01. 2018
+  Changes:
+    - Initial release.
