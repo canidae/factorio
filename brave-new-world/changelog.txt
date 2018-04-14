@@ -1,8 +1,14 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.1.0
+Date: 14. 04. 2018
+  Changes:
+    - Players may now explore using vehicles.
+    - Improved detection/prevention of revealing uncharted sectors by panning camera.
+---------------------------------------------------------------------------------------------------
 Version: 2.0.3
 Date: 08. 04. 2018
   Changes:
-    - Player is now allowed to carry equipment, to better accomodate mods that add equipment grids to vehicles.
+    - Players are now allowed to carry equipment, to better accomodate mods that add equipment grids to vehicles.
   Bugfixes:
     - Typo caused game to not end when starting roboport was destroyed, discovered by GitHub user credomane.
 ---------------------------------------------------------------------------------------------------
@@ -14,13 +20,14 @@ Date: 03. 04. 2018
 Version: 2.0.1
 Date: 20. 03. 2018
   Changes:
-    - Factorio 0.16.31 fixed an issue with the event for player moved, BNW now uses this event instead of on_tick (performance improvement).
+    - Factorio 0.16.31 fixed an issue with the on_player_changed_position event, BNW now uses this event instead of on_tick (performance improvement).
 ---------------------------------------------------------------------------------------------------
 Version: 2.0.0
 Date: 17. 03. 2018
   Changes:
     - Major overhaul of code.
     - Instead of carrying one of each items, you get blueprints of placeable structures. There are some exceptions, like power poles and underground pipes (but not underground belts, as these cause issues). These exceptions exist to improve the game experience, such as placing power poles at max distance.
+    - Scenario now provides an "Upgrade Planner". In the deconstruction planner, place items you're upgrading from on the second row, and items you're upgrading to on third row, directly below. See mod page for more details.
 ---------------------------------------------------------------------------------------------------
 Version: 1.0.1
 Date: 03. 01. 2018

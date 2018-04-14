@@ -204,13 +204,9 @@ function setupForce(force, surface, x, y)
     global.forces[force.name] = {
         rewires = {}
     }
-    local config = global.forces[force.name]
-
-    -- setup exploration boundary
-    config.explore_boundary = {{x - 96, y - 96}, {x + 96, y + 96}}
-    force.chart(surface, {{x - 192, y - 192}, {x + 192, y + 192}})
 
     -- setup starting location
+    force.chart(surface, {{x - 192, y - 192}, {x + 192, y + 192}})
     -- oil is rare, but mandatory to continue research. add some oil patches near spawn point
     local xx = x + math.random(16, 32) * (math.random(1, 2) == 1 and 1 or -1)
     local yy = y + math.random(16, 32) * (math.random(1, 2) == 1 and 1 or -1)
@@ -283,6 +279,7 @@ function setupForce(force, surface, x, y)
         surface.create_entity{name = "stone-wall", position = {x + 2, yy}, force = force}
     end
     -- roboport
+    local config = global.forces[force.name]
     config.roboport = surface.create_entity{name = "roboport", position = {x, y}, force = force}
     config.roboport.minable = false
     config.roboport.energy = 100000000
@@ -397,9 +394,11 @@ script.on_event(defines.events.on_player_created, function(event)
     if not global.players then
         global.players = {}
     end
+    local player = game.players[event.player_index]
     global.players[event.player_index] = {
         crafted = {},
-        inventory_items = {}
+        inventory_items = {},
+        previous_position = player.position
     }
 
     -- create a "staging" surface that helps with the magic
@@ -409,7 +408,6 @@ script.on_event(defines.events.on_player_created, function(event)
         global.tmpstack = global.chest.get_inventory(defines.inventory.chest)[1]
     end
 
-    local player = game.players[event.player_index]
     if player.character then
         player.character.destroy()
         player.character = nil
@@ -626,45 +624,33 @@ script.on_event(defines.events.on_entity_died, function(event)
     end
 end)
 
-script.on_event(defines.events.on_sector_scanned, function(event)
-    local position = event.chunk_position
-    local radar = event.radar
-    local config = global.forces[radar.force.name]
-    local x = ((position.x <= 0 and (position.x + 4)) or (position.x > 0 and (position.x - 4))) * 32
-    local y = ((position.y <= 0 and (position.y + 4)) or (position.y > 0 and (position.y - 4))) * 32
-    if x < config.explore_boundary[1][1] then
-        config.explore_boundary[1][1] = x
-    elseif x > config.explore_boundary[2][1] then
-        config.explore_boundary[2][1] = x
-    end
-    if y < config.explore_boundary[1][2] then
-        config.explore_boundary[1][2] = y
-    elseif y > config.explore_boundary[2][2] then
-        config.explore_boundary[2][2] = y
-    end
-end)
-
 script.on_event(defines.events.on_player_changed_position, function(event)
     local player = game.players[event.player_index]
-    -- prevent mining and crafting (this appeared to be reset when loading a 0.16.26 save in 0.16.27)
+    -- prevent mining (this appeared to be reset when loading a 0.16.26 save in 0.16.27)
     player.force.manual_mining_speed_modifier = -0.99999999 -- allows removing ghosts with right-click
 
     local config = global.forces[player.force.name]
-    -- prevent player from exploring
-    local teleport = player.vehicle and player.vehicle.position or player.position
-    if teleport.x < config.explore_boundary[1][1] then
-        teleport.x = config.explore_boundary[1][1]
-    elseif teleport.x > config.explore_boundary[2][1] then
-        teleport.x = config.explore_boundary[2][1]
+    local x_chunk = math.floor(player.position.x / 32)
+    local y_chunk = math.floor(player.position.y / 32)
+    -- prevent player from exploring, unless in a vehicle
+    if not player.vehicle then
+        local charted = function(x, y)
+            return player.force.is_chunk_charted(player.surface, {x - 2, y - 2}) and player.force.is_chunk_charted(player.surface, {x - 2, y + 2}) and player.force.is_chunk_charted(player.surface, {x + 2, y - 2}) and player.force.is_chunk_charted(player.surface, {x + 2, y + 2})
+        end
+        if not charted(math.floor(player.position.x / 32), math.floor(player.position.y / 32)) then
+            -- can't move here, chunk not charted
+            local prev_pos = global.players[event.player_index].previous_position
+            if charted(math.floor(player.position.x / 32), math.floor(prev_pos.y / 32)) then
+                -- we can move here, though
+                prev_pos.x = player.position.x
+            elseif charted(math.floor(prev_pos.x / 32), math.floor(player.position.y / 32)) then
+                -- or here
+                prev_pos.y = player.position.y
+            end
+            -- teleport player to (possibly modified) prev_pos
+            player.teleport(prev_pos)
+        end
     end
-    if teleport.y < config.explore_boundary[1][2] then
-        teleport.y = config.explore_boundary[1][2]
-    elseif teleport.y > config.explore_boundary[2][2] then
-        teleport.y = config.explore_boundary[2][2]
-    end
-    if player.vehicle then
-        player.vehicle.teleport(teleport)
-    else
-        player.teleport(teleport)
-    end
+    -- save new player position
+    global.players[event.player_index].previous_position = player.position
 end)
