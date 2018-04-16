@@ -495,6 +495,9 @@ end)
 
 script.on_event(defines.events.on_player_pipette, function(event)
     local player = game.players[event.player_index]
+    if not player.cursor_stack or not player.cursor_stack.valid_for_read then
+        return
+    end
     local name = player.cursor_stack.name
     if itemCountAllowed(name, player.cursor_stack.count, player) > 0 then
         -- some entities may be carried, but only allow pipetting if player got item in inventory (or cheat mode will make some)
