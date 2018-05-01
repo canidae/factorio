@@ -403,6 +403,7 @@ gui = {
                 end
                 gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.prioritized, config.prioritized_techs, player, true)
                 gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.deprioritized, config.deprioritized_techs, player)
+                gui.updateSearchResult(player, player.gui.top.auto_research_gui.flow.searchflow.auto_research_search_text.text)
 
                 -- start new research
                 startNextResearch(force)
@@ -485,10 +486,7 @@ gui = {
             direction = "vertical"
         }
         local ingredients_filter = player.gui.top.auto_research_gui.flow.searchoptionsflow.auto_research_ingredients_filter_search_results.state
-        local config
-        if ingredients_filter then
-            config = getConfig(player.force)
-        end
+        local config = getConfig(player.force)
         local shown = 0
         text = string.lower(text)
         -- NOTICE: localised name matching does not work at present, pending unlikely changes to Factorio API
@@ -553,6 +551,22 @@ gui = {
                                     end
                                 end
                             end
+                        end
+                    end
+                end
+                if showtech and config.prioritized_techs then
+                    for _, queued_tech in pairs(config.prioritized_techs) do
+                        if name == queued_tech then
+                            showtech = false
+                            break
+                        end
+                    end
+                end
+                if showtech and config.deprioritized_techs then
+                    for _, blacklisted_tech in pairs(config.deprioritized_techs) do
+                        if name == blacklisted_tech then
+                            showtech = false
+                            break
                         end
                     end
                 end
