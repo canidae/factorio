@@ -205,6 +205,11 @@ function setupForce(force, surface, x, y)
         rewires = {}
     }
 
+    -- give player the possibility to build robots & logistic chests from the start
+    force.technologies["construction-robotics"].researched = true
+    force.technologies["logistic-robotics"].researched = true
+    force.technologies["logistic-system"].researched = true
+
     -- setup starting location
     force.chart(surface, {{x - 192, y - 192}, {x + 192, y + 192}})
     -- oil is rare, but mandatory to continue research. add some oil patches near spawn point
