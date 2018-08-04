@@ -1,6 +1,9 @@
 local water_replace_tile = "dirt-3"
 
 function inventoryChanged(event)
+    if global.creative then
+        return
+    end
     local player = game.players[event.player_index]
     -- remove any crafted items (and possibly make blueprint of item on cursor)
     for _, stack in pairs(global.players[event.player_index].crafted) do
@@ -204,6 +207,16 @@ function setupForce(force, surface, x, y)
     global.forces[force.name] = {
         rewires = {}
     }
+
+    -- setup event listeners for creative mode
+    if remote.interfaces["creative-mode"] then
+        script.on_event(remote.call("creative-mode", "on_enabled"), function(event)
+            global.creative = true
+        end)
+        script.on_event(remote.call("creative-mode", "on_disabled"), function(event)
+            global.creative = false
+        end)
+    end
 
     -- give player the possibility to build robots & logistic chests from the start
     force.technologies["construction-robotics"].researched = true
@@ -427,6 +440,9 @@ script.on_event(defines.events.on_player_created, function(event)
 end)
 
 script.on_event(defines.events.on_built_entity, function(event)
+    if global.creative then
+        return
+    end
     local player = game.players[event.player_index]
     local entity = event.created_entity
     local last_entity = global.players[event.player_index].last_built_entity
@@ -468,6 +484,9 @@ script.on_event(defines.events.on_built_entity, function(event)
 end)
 
 script.on_event(defines.events.on_robot_built_entity, function(event)
+    if global.creative then
+        return
+    end
     -- TODO: upgrading and removing ghosts leaves stale entries (memory leak). probably not serious, so issue is ignored for now
     local entity = event.created_entity
     local rewires = global.forces[entity.force.name].rewires[entity.position.x .. ";" .. entity.position.y]
@@ -489,6 +508,9 @@ script.on_event(defines.events.on_robot_built_entity, function(event)
 end)
 
 script.on_event(defines.events.on_player_crafted_item, function(event)
+    if global.creative then
+        return
+    end
     local crafted = global.players[event.player_index].crafted
     local item = game.item_prototypes[event.item_stack.name or ""]
     if item.type == "blueprint" or item.type == "deconstruction-item" or item.type == "blueprint-book" or item.type == "selection-tool" then
@@ -499,6 +521,9 @@ script.on_event(defines.events.on_player_crafted_item, function(event)
 end)
 
 script.on_event(defines.events.on_player_pipette, function(event)
+    if global.creative then
+        return
+    end
     local player = game.players[event.player_index]
     if not player.cursor_stack or not player.cursor_stack.valid_for_read then
         return
@@ -520,6 +545,9 @@ script.on_event(defines.events.on_player_main_inventory_changed, inventoryChange
 script.on_event(defines.events.on_player_quickbar_inventory_changed, inventoryChanged)
 
 script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
+    if global.creative then
+        return
+    end
     local player = game.players[event.player_index]
     local cursor = player.cursor_stack
     local last_entity = global.players[event.player_index].last_built_entity
@@ -586,6 +614,9 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
 end)
 
 script.on_event(defines.events.on_marked_for_deconstruction, function(event)
+    if global.creative then
+        return
+    end
     if not event.player_index then
         return
     end
@@ -624,6 +655,9 @@ script.on_event(defines.events.on_marked_for_deconstruction, function(event)
 end)
 
 script.on_event(defines.events.on_entity_died, function(event)
+    if global.creative then
+        return
+    end
     local entity = event.entity
     -- check if roboport was destroyed
     local config = global.forces[entity.force.name]
@@ -633,6 +667,9 @@ script.on_event(defines.events.on_entity_died, function(event)
 end)
 
 script.on_event(defines.events.on_player_changed_position, function(event)
+    if global.creative then
+        return
+    end
     local player = game.players[event.player_index]
     -- prevent mining (this appeared to be reset when loading a 0.16.26 save in 0.16.27)
     player.force.manual_mining_speed_modifier = -0.99999999 -- allows removing ghosts with right-click
