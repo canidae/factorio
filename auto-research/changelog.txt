@@ -1,0 +1,171 @@
+---------------------------------------------------------------------------------------------------
+Version: 4.2.0
+Date: 05. 08. 2018
+  Changes:
+    - Players may choose a different research strategy. Research strategy will honor research queue & blacklist. Suggested by Foreros.
+    - Added mod setting for specifying default queue/blacklist (advanced usage). Suggested by oLaudix.
+    - Better support for research ingredients with multiple icons. Reported by GitHub user LovelySanta
+---------------------------------------------------------------------------------------------------
+Version: 4.1.0
+Date: 03. 04. 2018
+  Changes:
+    - Added possibility to filter search results by toggled ingredients. Feature provided by GitHub user sparr.
+    - Display all search results instead of just 30. Feature provided by GitHub user sparr.
+    - Improved search functionality, but still no localized search (game restriction). Feature provided by GitHub user sparr.
+---------------------------------------------------------------------------------------------------
+Version: 4.0.3
+Date: 10. 02. 2018
+  Changes:
+    - When another mod (such as Timed Technology) changed research ingredients or energy to 0, AR effort calculation would result in all techs being considered having the same effort (0). This is no longer the case.
+---------------------------------------------------------------------------------------------------
+Version: 4.0.2
+Date: 15. 12. 2017
+  Changes:
+    - Fixed issue with checkboxes not saving state.
+---------------------------------------------------------------------------------------------------
+Version: 4.0.1
+Date: 15. 12. 2017
+  Changes:
+    - Fixed issue with remote interfaces, which is used by other mods to modify Auto Research settings.
+---------------------------------------------------------------------------------------------------
+Version: 4.0.0
+Date: 14. 12. 2017
+  Changes:
+    - Updated for Factorio 0.16.
+---------------------------------------------------------------------------------------------------
+Version: 3.5.0
+Date: 03. 07. 2017
+  Changes:
+    - Added buttons for moving queued tech to the top/bottom of the queue. Suggested by pokemonspeler.
+    - Right-clicking the search field removes the text. Suggested by Netoen.
+---------------------------------------------------------------------------------------------------
+Version: 3.4.0
+Date: 13. 06. 2017
+  Changes:
+    - New setting: Deprioritize infinite tech. Disabled by default. When enabled AR will research all techs which are finite before researching infinite techs. Note that only technologies marked with the infinity symbol (∞) are considered infinite, technologies such as "Mining productivity 1-3" is considered a finite tech. Suggested by Solarwuff.
+    - When enabling all techs or for some other reason complete multiple technologies during the same tick, only the first technology will be announced. This is to prevent the chat from being spammed. Suggested by Sworn.
+---------------------------------------------------------------------------------------------------
+Version: 3.3.1
+Date: 07. 05. 2017
+  Changes:
+    - Fixed issue where AR researched the least effort tech in queue rather than the highest prioritized tech.
+---------------------------------------------------------------------------------------------------
+Version: 3.3.0
+Date: 07. 05. 2017
+  Changes:
+    - "Prioritized" has changed name to "Queued".
+    - "Deprioritized" is now "Blacklisted". Technologies added to this list will never be researched, even if there are no other technologies left to be researched. The old "Deprioritized" would research a technology if there were no other options, but this was a behavior that made more sense in earlier versions of the mod.
+---------------------------------------------------------------------------------------------------
+Version: 3.2.2
+Date: 04. 05. 2017
+  Changes:
+    - Adding/removing/updating mods should no longer cause AR to reset allowed ingredients toggles.
+---------------------------------------------------------------------------------------------------
+Version: 3.2.1
+Date: 04. 05. 2017
+  Changes:
+    - Adding a mod that introduced more research ingredients to an existing game with AR caused AR not to discover the new ingredients. This is now fixed.
+---------------------------------------------------------------------------------------------------
+Version: 3.2.0
+Date: 03. 05. 2017
+  Changes:
+    - The setting "Fewest ingredients first" has been removed. It didn't work well with infinite research as certain infinite techs require 6 types of science packs while others require 7, meaning that the latter will never be researched as long as this setting was enabled. While the setting had its merits, it was a confusing option and the new ingredient filter works as a decent replacement.
+    - Added new setting "Only research prioritized" (default disabled). When this setting is checked AR will only start researching techs leading up to and including the prioritized techs. No prioritized techs; No automatic research of "least effort" techs.
+    - Prerequisites to prioritized techs weren't researched in a defined order. Now the least effort prerequisites will be researched first.
+---------------------------------------------------------------------------------------------------
+Version: 3.1.0
+Date: 27. 04. 2017
+  Changes:
+    - The setting "Allow non-standard ingredients" has been replaced by an ingredient filter. You can now tell Auto Research to avoid technologies that requires ingredients you've filtered out in the GUI. Improvement suggested by Rhamphoryncus.
+    - Improved effort calculation by also including ingredient count. Improvement suggested by Optera.
+    - Ingredients added by other mods should in most cases now be displayed with the correct icon in the GUI rather than a question mark.
+---------------------------------------------------------------------------------------------------
+Version: 3.0.2
+Date: 26. 04. 2017
+  Changes:
+    - I discovered that infinite research (such as "Mining Productivity") is displayed incorrectly in the game if a mod starts the next level of a research immediately upon completion of the previous level. If you queue up "Mining Productivity" then AR will first research "Mining Productivity 1", then "Mining Productivity 2", but in Factorio 0.15.2 it looks like it's researching "Mining Productivity 1" twice! Thus I removed the work-around in AR 3.0.1 as it's not AR doing anything wrong.
+    - Added technology level when broadcasting research completion.
+---------------------------------------------------------------------------------------------------
+Version: 3.0.1
+Date: 26. 04. 2017
+  Changes:
+    - Fixed issue where wrong prerequisite technology was researched when prioritizing techs.
+    - Temporary work-around to prevent AR from researching the same level of certain technologies (such as "Mining Productivity").
+---------------------------------------------------------------------------------------------------
+Version: 3.0.0
+Date: 24. 04. 2017
+  Changes:
+    - Only updated to work with Factorio 0.15.
+---------------------------------------------------------------------------------------------------
+Version: 2.2.1
+Date: 05. 11. 2016
+  Changes:
+    - Fixed issue where AR would crash if you prioritized/deprioritized techs added by another mod, then removed the mod adding the tech.
+---------------------------------------------------------------------------------------------------
+Version: 2.2.0
+Date: 23. 10. 2016
+  Changes:
+    - Added option to print technology name in console when research is finished.
+    - Auto Research will no longer cause game to freeze for a short time when you enable all technologies (commonly done in sandbox mode).
+    - Searching for technologies is now case insensitive.
+---------------------------------------------------------------------------------------------------
+Version: 2.1.0
+Date: 06. 10. 2016
+  Changes:
+    - Deprioritized technologies will now only be researched when there's no other non-deprioritized technology available. Previously AR would research deprioritized technologies when "fewest first" was enabled and the deprioritized technologies was the last techs left with the fewest types of ingredients.
+    - Added ingredient icons to technology lists in GUI. Will (probably) show question mark for non-standard ingredients to technologies added by other mods.
+    - Cleaned up code. Probably broke shortcut key for those who've changed it from the default.
+---------------------------------------------------------------------------------------------------
+Version: 2.0.0
+Date: 22. 09. 2016
+  Changes:
+    - Research Center is gone, replaced with a GUI. Sadly this means that you can't add a signal (such as the locomotive) to prioritize research. You can however search for technologies and items in the GUI, although you have to search for the prototype name and not the localized name (restriction imposed by game). Prototype name tend to be the same or nearly the same as the English localization.
+    - Technologies were not researched in the intended order, they should now.
+    - Added possibility to switch research even though previous research is not completed (as the game now saves your progress if you change research).
+    - Mod is enabled by default again.
+    - Keybinding for enabling/disabling Auto Research, non-standard research recipes and researching all technologies requiring fewest types of science packs first have been removed. These settings can be changed in the GUI.
+---------------------------------------------------------------------------------------------------
+Version: 1.0.1
+Date: 18. 09. 2016
+  Changes:
+    - Sorting technology signals alphabetically.
+---------------------------------------------------------------------------------------------------
+Version: 1.0.0
+Date: 16. 09. 2016
+  Changes:
+    - Added a "Research Center" for configuring AR from within the game.
+    - Removed config.lua as (most of) it can now be configured within the game using the Research Center.
+    - Proper support for multiple forces, each force have their own settings for AR.
+    - Added keybinding (Control+T) for enabling/disabling whether AR should research all technologies requiring fewest ingredients before moving on to technologies requiring more types of ingredients. Keybinding for enabling/disabling research of technologies requiring other ingredients than Science packs and Alien science pack has been moved to Alt+T. This may cause duplicate keybindings for those who upgrade AR from a previous version, solution is to manually set the keybindings.
+---------------------------------------------------------------------------------------------------
+Version: 0.7.0
+Date: 12. 09. 2016
+  Changes:
+    - Update to make mod work with Factorio 0.14.
+---------------------------------------------------------------------------------------------------
+Version: 0.6.0
+Date: 21. 08. 2016
+  Changes:
+    - Added keybinding (Control+T) for enabling/disabling research of technologies requiring other ingredients than Science packs and Alien science pack.
+    - Added config setting for avoiding certain technologies.
+---------------------------------------------------------------------------------------------------
+Version: 0.5.0
+Date: 14. 08. 2016
+  Changes:
+    - Showing Research Queue popup when AR is disabled, hide it when AR is enabled.
+---------------------------------------------------------------------------------------------------
+Version: 0.4.0
+Date: 12. 08. 2016
+  Changes:
+    - Added keybinding (Shift+T) for toggling AR on/off.
+---------------------------------------------------------------------------------------------------
+Version: 0.3.0
+Date: 08. 08. 2016
+  Changes:
+    - Fixed an issue where Research Queue popup upon completing a research wasn't disabled.
+---------------------------------------------------------------------------------------------------
+Version: 0.2.0
+Date: 07. 08. 2016
+  Changes:
+    - Added remote interface for enabling/disabling AR.
+    - Will research prerequisites to a prioritized technology.
