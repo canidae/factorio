@@ -6,6 +6,6 @@
   "author": "canidae",
   "contact": "canidae@exent.net",
   "homepage": "http://exent.net",
-  "description": "Automates research. Toggle GUI with Shift+T (customizable). Chooses research in the following order: Queued technologies, prerequisites for queued technologies, least effort technologies (effort = science packs * energy).",
+  "description": "Automates research. Toggle GUI with Shift+T (customizable).",
   "dependencies": ["base >= 0.16.0"]
 }
