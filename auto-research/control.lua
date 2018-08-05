@@ -7,6 +7,7 @@ function getConfig(force, config_changed)
             remote.call("RQ", "popup", false)
         end
     end
+
     if not global.auto_research_config[force.name] then
         global.auto_research_config[force.name] = {
             prioritized_techs = {}, -- "prioritized" is "queued". kept for backwards compatability (because i'm lazy and don't want migration code)
@@ -24,6 +25,10 @@ function getConfig(force, config_changed)
         -- Print researched technology
         setAnnounceCompletedResearch(force, true)
     end
+
+    -- set research strategy
+    global.auto_research_config[force.name].research_strategy = global.auto_research_config[force.name].research_strategy or "balanced"
+
     if config_changed or not global.auto_research_config[force.name].allowed_ingredients or not global.auto_research_config[force.name].infinite_research then
         -- remember any old ingredients
         local old_ingredients = {}
@@ -54,6 +59,7 @@ function getConfig(force, config_changed)
             global.auto_research_config[force.name].infinite_research[techname] = nil
         end
     end
+
     return global.auto_research_config[force.name]
 end
 
@@ -151,11 +157,32 @@ function startNextResearch(force)
 
     -- function for calculating tech effort
     local calcEffort = function(tech)
-        local tech_ingredients = 0
-        for _, ingredient in pairs(tech.research_unit_ingredients) do
-            tech_ingredients = tech_ingredients + ingredient.amount
+        local ingredientCount = function(ingredients)
+            local tech_ingredients = 0
+            for _, ingredient in pairs(tech.research_unit_ingredients) do
+                tech_ingredients = tech_ingredients + ingredient.amount
+            end
+            return tech_ingredients
         end
-        return math.max(tech.research_unit_count, 1) * math.max(tech.research_unit_energy, 1) * math.max(tech_ingredients, 1) * ((config.deprioritize_infinite_tech and config.infinite_research[tech.name] and 1000) or 1)
+        local effort = 0
+        if config.research_strategy == "fast" then
+            effort = math.max(tech.research_unit_energy, 1) * math.max(tech.research_unit_count, 1)
+        elseif config.research_strategy == "slow" then
+            effort = math.max(tech.research_unit_energy, 1) * math.max(tech.research_unit_count, 1) * -1
+        elseif config.research_strategy == "cheap" then
+            effort = math.max(ingredientCount(tech.research_unit_ingredients), 1) * math.max(tech.research_unit_count, 1)
+        elseif config.research_strategy == "expensive" then
+            effort = math.max(ingredientCount(tech.research_unit_ingredients), 1) * math.max(tech.research_unit_count, 1) * -1
+        elseif config.research_strategy == "balanced" then
+            effort = math.max(tech.research_unit_count, 1) * math.max(tech.research_unit_energy, 1) * math.max(ingredientCount(tech.research_unit_ingredients), 1)
+        else
+            effort = math.random(1, 999)
+        end
+        if (config.deprioritize_infinite_tech and config.infinite_research[tech.name]) then
+            return effort * (effort > 0 and 1000 or -1000)
+        else
+            return effort
+        end
     end
 
     -- see if there are some techs we should research first
@@ -252,6 +279,31 @@ gui = {
             frameflow.add{type = "checkbox", name = "auto_research_announce_completed", caption = {"auto_research_gui.announce_completed"}, tooltip = {"auto_research_gui.announce_completed_tooltip"}, state = config.announce_completed or false}
             frameflow.add{type = "checkbox", name = "auto_research_deprioritize_infinite_tech", caption = {"auto_research_gui.deprioritize_infinite_tech"}, tooltip = {"auto_research_gui.deprioritize_infinite_tech_tooltip"}, state = config.deprioritize_infinite_tech or false}
 
+            -- research strategy
+            frameflow.add{
+                type = "label",
+                style = "auto_research_header_label",
+                caption = {"auto_research_gui.research_strategy"}
+            }
+            local research_strategies_one = frameflow.add{
+                type = "flow",
+                style = "auto_research_tech_flow",
+                name = "research_strategies_one",
+                direction = "horizontal"
+            }
+            research_strategies_one.add{type = "radiobutton", name = "auto_research_research_fast", caption = {"auto_research_gui.research_fast"}, tooltip = {"auto_research_gui.research_fast_tooltip"}, state = config.research_strategy == "fast"}
+            research_strategies_one.add({type = "radiobutton", name = "auto_research_research_cheap", caption = {"auto_research_gui.research_cheap"}, tooltip = {"auto_research_gui.research_cheap_tooltip"}, state = config.research_strategy == "cheap"}).style.left_padding = 15
+            research_strategies_one.add({type = "radiobutton", name = "auto_research_research_balanced", caption = {"auto_research_gui.research_balanced"}, tooltip = {"auto_research_gui.research_balanced_tooltip"}, state = config.research_strategy == "balanced"}).style.left_padding = 15
+            local research_strategies_two = frameflow.add{
+                type = "flow",
+                style = "auto_research_tech_flow",
+                name = "research_strategies_two",
+                direction = "horizontal"
+            }
+            research_strategies_two.add{type = "radiobutton", name = "auto_research_research_slow", caption = {"auto_research_gui.research_slow"}, tooltip = {"auto_research_gui.research_slow_tooltip"}, state = config.research_strategy == "slow"}
+            research_strategies_two.add({type = "radiobutton", name = "auto_research_research_expensive", caption = {"auto_research_gui.research_expensive"}, tooltip = {"auto_research_gui.research_expensive_tooltip"}, state = config.research_strategy == "expensive"}).style.left_padding = 15
+            research_strategies_two.add({type = "radiobutton", name = "auto_research_research_random", caption = {"auto_research_gui.research_random"}, tooltip = {"auto_research_gui.research_random_tooltip"}, state = config.research_strategy == "random"}).style.left_padding = 15
+
             -- allowed ingredients
             frameflow.add{
                 type = "label",
@@ -280,7 +332,7 @@ gui = {
             }
             prioritized.style.top_padding = 5
             prioritized.style.bottom_padding = 5
-            prioritized.style.maximal_height = 192
+            prioritized.style.maximal_height = 127
             -- draw prioritized tech list
             gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.prioritized, config.prioritized_techs, player, true)
 
@@ -298,7 +350,7 @@ gui = {
             }
             deprioritized.style.top_padding = 5
             deprioritized.style.bottom_padding = 5
-            deprioritized.style.maximal_height = 192
+            deprioritized.style.maximal_height = 127
             -- draw deprioritized tech list
             gui.updateTechnologyList(player.gui.top.auto_research_gui.flow.deprioritized, config.deprioritized_techs, player)
 
@@ -340,7 +392,7 @@ gui = {
             }
             search.style.top_padding = 5
             search.style.bottom_padding = 5
-            search.style.maximal_height = 192
+            search.style.maximal_height = 127
             -- draw search result list
             gui.updateSearchResult(player, "")
         end
@@ -369,6 +421,16 @@ gui = {
         elseif name == "auto_research_ingredients_filter_search_results" then
             config.filter_search_results = event.element.state
             gui.updateSearchResult(player, player.gui.top.auto_research_gui.flow.searchflow.auto_research_search_text.text)
+        elseif string.find(name, "auto_research_research") then
+            config.research_strategy = string.match(name, "^auto_research_research_(.*)$")
+            player.gui.top.auto_research_gui.flow.research_strategies_one.auto_research_research_fast.state = (config.research_strategy == "fast")
+            player.gui.top.auto_research_gui.flow.research_strategies_one.auto_research_research_cheap.state = (config.research_strategy == "cheap")
+            player.gui.top.auto_research_gui.flow.research_strategies_one.auto_research_research_balanced.state = (config.research_strategy == "balanced")
+            player.gui.top.auto_research_gui.flow.research_strategies_two.auto_research_research_slow.state = (config.research_strategy == "slow")
+            player.gui.top.auto_research_gui.flow.research_strategies_two.auto_research_research_expensive.state = (config.research_strategy == "expensive")
+            player.gui.top.auto_research_gui.flow.research_strategies_two.auto_research_research_random.state = (config.research_strategy == "random")
+            -- start new research
+            startNextResearch(force)
         else
             local prefix, name = string.match(name, "^auto_research_([^-]*)-(.*)$")
             if prefix == "allow_ingredient" then
