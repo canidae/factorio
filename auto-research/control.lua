@@ -148,9 +148,9 @@ function canResearch(force, tech, config)
     return true
 end
 
-function startNextResearch(force)
+function startNextResearch(force, override_spam_detection)
     local config = getConfig(force)
-    if not config.enabled or (force.current_research and not config.allow_switching) or config.last_research_finish_tick == game.tick then
+    if not config.enabled or (force.current_research and not config.allow_switching) or (not override_spam_detection and config.last_research_finish_tick == game.tick) then
         return
     end
     config.last_research_finish_tick = game.tick -- if multiple research finish same tick for same force, the user probably enabled all techs
@@ -667,7 +667,24 @@ script.on_configuration_changed(function()
     end
 end)
 script.on_event(defines.events.on_player_created, function(event)
-    getConfig(game.players[event.player_index].force) -- triggers initialization of force config
+    local force = game.players[event.player_index].force
+    local config = getConfig(force) -- triggers initialization of force config
+    -- set any default queued/blacklisted techs
+    local queued_tech = settings.get_player_settings(game.players[event.player_index])["queued-tech-setting"].value
+    for tech in string.gmatch(queued_tech, "[^,$]+") do
+        tech = string.gsub(tech, "%s+", "")
+        if force.technologies[tech] and force.technologies[tech].enabled and not force.technologies[tech].researched then
+            table.insert(config.prioritized_techs, tech)
+        end
+    end
+    local blacklisted_tech = settings.get_player_settings(game.players[event.player_index])["blacklisted-tech-setting"].value
+    for tech in string.gmatch(blacklisted_tech, "[^,$]+") do
+        tech = string.gsub(tech, "%s+", "")
+        if force.technologies[tech] and force.technologies[tech].enabled and not force.technologies[tech].researched then
+            table.insert(config.deprioritized_techs, tech)
+        end
+    end
+    startNextResearch(force, true)
 end)
 script.on_event(defines.events.on_force_created, function(event)
     getConfig(event.force) -- triggers initialization of force config
