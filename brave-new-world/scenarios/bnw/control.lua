@@ -1,10 +1,24 @@
-local water_replace_tile = "dirt-3"
-
 function inventoryChanged(event)
     if global.creative then
         return
     end
     local player = game.players[event.player_index]
+    if not global.seablocked then
+        -- tiny hack to work around that SeaBlock sets up stuff after BNW on load
+        global.seablocked = true
+        -- move everything from the Home rock to the other chest
+        local home_rock = player.surface.find_entity("rock-chest", {0.5, 0.5})
+        if home_rock then
+            for name, count in pairs(home_rock.get_inventory(defines.inventory.chest).get_contents()) do
+                global.seablock_chest.insert{name = name, count = count}
+            end
+        end
+        home_rock.destroy()
+        global.seablock_chest = nil
+
+        -- and clear the starting items from player inventory
+        player.clear_items_inside()
+    end
     -- remove any crafted items (and possibly make blueprint of item on cursor)
     for _, stack in pairs(global.players[event.player_index].crafted) do
         if itemCountAllowed(stack.name, stack.count, player) == 0 then
@@ -196,7 +210,7 @@ function replaceWithBlueprint(item_stack, direction)
     return pcall(setBlueprintEntities)
 end
 
-function setupForce(force, surface, x, y)
+function setupForce(force, surface, x, y, seablock_enabled)
     if not global.forces then
         global.forces = {}
     end
@@ -223,50 +237,62 @@ function setupForce(force, surface, x, y)
     force.technologies["logistic-robotics"].researched = true
     force.technologies["logistic-system"].researched = true
 
+    -- research some techs that require manual labour
+    if seablock_enabled then
+        force.technologies["sb-startup1"].researched = true
+        force.technologies["sb-startup2"].researched = true
+        force.technologies["bio-wood-processing"].researched = true -- what happened to sb-startup3? :o
+        force.technologies["sb-startup4"].researched = true
+    end
+
     -- setup starting location
+    local water_replace_tile = "sand-1"
     force.chart(surface, {{x - 192, y - 192}, {x + 192, y + 192}})
-    -- oil is rare, but mandatory to continue research. add some oil patches near spawn point
-    local xx = x + math.random(16, 32) * (math.random(1, 2) == 1 and 1 or -1)
-    local yy = y + math.random(16, 32) * (math.random(1, 2) == 1 and 1 or -1)
-    local tiles = {}
-    surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xx, yy}}
-    for xxx = xx - 2, xx + 2 do
-        for yyy = yy - 2, yy + 2 do
-            local tile = surface.get_tile(xxx, yyy)
-            local name = tile.name
-            if tile.prototype.layer <= 4 then
-                name = water_replace_tile
+    if not seablock_enabled then
+        water_replace_tile = "dirt-3"
+        -- oil is rare, but mandatory to continue research. add some oil patches near spawn point
+        local xx = x + math.random(16, 32) * (math.random(1, 2) == 1 and 1 or -1)
+        local yy = y + math.random(16, 32) * (math.random(1, 2) == 1 and 1 or -1)
+        local tiles = {}
+        surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xx, yy}}
+        for xxx = xx - 2, xx + 2 do
+            for yyy = yy - 2, yy + 2 do
+                local tile = surface.get_tile(xxx, yyy)
+                local name = tile.name
+                if tile.prototype.layer <= 4 then
+                    name = water_replace_tile
+                end
+                tiles[#tiles + 1] = {name = name, position = {xxx, yyy}}
             end
-            tiles[#tiles + 1] = {name = name, position = {xxx, yyy}}
         end
-    end
-    xxx = xx + math.random(-8, 8)
-    yyy = yy - math.random(4, 8)
-    for xxxx = xxx - 2, xxx + 2 do
-        for yyyy = yyy - 2, yyy + 2 do
-            local tile = surface.get_tile(xxxx, yyyy)
-            local name = tile.name
-            if tile.prototype.layer <= 4 then
-                name = water_replace_tile
+        xxx = xx + math.random(-8, 8)
+        yyy = yy - math.random(4, 8)
+        for xxxx = xxx - 2, xxx + 2 do
+            for yyyy = yyy - 2, yyy + 2 do
+                local tile = surface.get_tile(xxxx, yyyy)
+                local name = tile.name
+                if tile.prototype.layer <= 4 then
+                    name = water_replace_tile
+                end
+                tiles[#tiles + 1] = {name = name, position = {xxxx, yyyy}}
             end
-            tiles[#tiles + 1] = {name = name, position = {xxxx, yyyy}}
         end
-    end
-    surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xxx, yyy}}
-    xxx = xx + math.random(-8, 8)
-    yyy = yy + math.random(4, 8)
-    for xxxx = xxx - 2, xxx + 2 do
-        for yyyy = yyy - 2, yyy + 2 do
-            local tile = surface.get_tile(xxxx, yyyy)
-            local name = tile.name
-            if tile.prototype.layer <= 4 then
-                name = water_replace_tile
+        surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xxx, yyy}}
+        xxx = xx + math.random(-8, 8)
+        yyy = yy + math.random(4, 8)
+        for xxxx = xxx - 2, xxx + 2 do
+            for yyyy = yyy - 2, yyy + 2 do
+                local tile = surface.get_tile(xxxx, yyyy)
+                local name = tile.name
+                if tile.prototype.layer <= 4 then
+                    name = water_replace_tile
+                end
+                tiles[#tiles + 1] = {name = name, position = {xxxx, yyyy}}
             end
-            tiles[#tiles + 1] = {name = name, position = {xxxx, yyyy}}
         end
+        surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xxx, yyy}}
+        surface.set_tiles(tiles)
     end
-    surface.create_entity{name = "crude-oil", amount = math.random(100000, 250000), position = {xxx, yyy}}
-    surface.set_tiles(tiles)
 
     -- remove trees/stones/resources
     local entities = surface.find_entities_filtered{area = {{x - 16, y - 7}, {x + 15, y + 9}}, force = "neutral"}
@@ -311,7 +337,7 @@ function setupForce(force, surface, x, y)
     -- radar
     surface.create_entity{name = "radar", position = {x - 1, y + 3}, force = force}
     -- storage chest
-    surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y + 3}, force = force}
+    local seablock_chest = surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y + 3}, force = force}
     -- storage chest, contains the items the force starts with
     local chest = surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y + 4}, force = force}
     local chest_inventory = chest.get_inventory(defines.inventory.chest)
@@ -335,6 +361,12 @@ function setupForce(force, surface, x, y)
     chest_inventory.insert{name = "logistic-chest-passive-provider", count = 4}
     chest_inventory.insert{name = "logistic-chest-requester", count = 4}
     chest_inventory.insert{name = "lab", count = 2}
+    if seablock_enabled then
+        -- need some stuff for SeaBlock so we won't get stuck
+        chest_inventory.insert{name = "ore-crusher", count = 1}
+        chest_inventory.insert{name = "wood-pellets", count = 50}
+        global.seablock_chest = seablock_chest
+    end
     -- solar panels and accumulators (left side)
     surface.create_entity{name = "solar-panel", position = {x - 11, y - 2}, force = force}
     surface.create_entity{name = "solar-panel", position = {x - 11, y + 1}, force = force}
@@ -408,6 +440,11 @@ function convertToGhost(entity)
     end
 end
 
+function preventMining(player)
+    -- prevent mining (this appeared to be reset when loading a 0.16.26 save in 0.16.27)
+    player.force.manual_mining_speed_modifier = -0.99999999 -- allows removing ghosts with right-click
+end
+
 script.on_event(defines.events.on_player_created, function(event)
     if not global.players then
         global.players = {}
@@ -436,7 +473,8 @@ script.on_event(defines.events.on_player_created, function(event)
     player.cheat_mode = true
 
     -- setup force
-    setupForce(player.force, player.surface, 0, 0)
+    setupForce(player.force, player.surface, 0, 0, game.active_mods["SeaBlock"])
+    preventMining(player)
 end)
 
 script.on_event(defines.events.on_built_entity, function(event)
@@ -671,8 +709,7 @@ script.on_event(defines.events.on_player_changed_position, function(event)
         return
     end
     local player = game.players[event.player_index]
-    -- prevent mining (this appeared to be reset when loading a 0.16.26 save in 0.16.27)
-    player.force.manual_mining_speed_modifier = -0.99999999 -- allows removing ghosts with right-click
+    preventMining(player)
 
     local config = global.forces[player.force.name]
     local x_chunk = math.floor(player.position.x / 32)
