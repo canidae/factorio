@@ -363,9 +363,12 @@ function setupForce(force, surface, x, y, seablock_enabled)
     chest_inventory.insert{name = "lab", count = 2}
     if seablock_enabled then
         -- need some stuff for SeaBlock so we won't get stuck
-        chest_inventory.insert{name = "ore-crusher", count = 1}
+        chest_inventory.insert{name = "ore-crusher", count = 4}
         chest_inventory.insert{name = "wood-pellets", count = 50}
         global.seablock_chest = seablock_chest
+    else
+        -- prevent error when looking for "rock-chest" later
+        global.seablocked = true
     end
     -- solar panels and accumulators (left side)
     surface.create_entity{name = "solar-panel", position = {x - 11, y - 2}, force = force}
