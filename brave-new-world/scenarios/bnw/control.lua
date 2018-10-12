@@ -475,6 +475,9 @@ script.on_event(defines.events.on_player_created, function(event)
     -- enable cheat mode
     player.cheat_mode = true
 
+    -- print tip
+    player.print({"startup_tip_1"})
+
     -- setup force
     setupForce(player.force, player.surface, 0, 0, game.active_mods["SeaBlock"])
     preventMining(player)
