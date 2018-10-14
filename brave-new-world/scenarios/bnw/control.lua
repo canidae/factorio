@@ -355,20 +355,28 @@ function setupForce(force, surface, x, y, seablock_enabled)
     chest_inventory.insert{name = "boiler", count = 1}
     chest_inventory.insert{name = "steam-engine", count = 2}
     chest_inventory.insert{name = "assembling-machine-3", count = 4}
-    chest_inventory.insert{name = "electric-mining-drill", count = 4}
     chest_inventory.insert{name = "roboport", count = 4}
     chest_inventory.insert{name = "logistic-chest-storage", count = 4}
     chest_inventory.insert{name = "logistic-chest-passive-provider", count = 4}
     chest_inventory.insert{name = "logistic-chest-requester", count = 4}
     chest_inventory.insert{name = "lab", count = 2}
     if seablock_enabled then
-        -- need some stuff for SeaBlock so we won't get stuck
+        -- need some stuff for SeaBlock so we won't get stuck (also slightly accelerate gameplay)
         chest_inventory.insert{name = "ore-crusher", count = 4}
+        chest_inventory.insert{name = "angels-electrolyser", count = 1}
+        chest_inventory.insert{name = "liquifier", count = 2}
+        chest_inventory.insert{name = "algae-farm", count = 2}
+        chest_inventory.insert{name = "hydro-plant", count = 1}
+        chest_inventory.insert{name = "crystallizer", count = 1}
+        chest_inventory.insert{name = "angels-flare-stack", count = 2}
+        chest_inventory.insert{name = "clarifier", count = 1}
         chest_inventory.insert{name = "wood-pellets", count = 50}
         global.seablock_chest = seablock_chest
     else
         -- prevent error when looking for "rock-chest" later
         global.seablocked = true
+        -- only give player this when we're not seablocking
+        chest_inventory.insert{name = "electric-mining-drill", count = 4}
     end
     -- solar panels and accumulators (left side)
     surface.create_entity{name = "solar-panel", position = {x - 11, y - 2}, force = force}
