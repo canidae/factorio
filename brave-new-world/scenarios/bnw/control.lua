@@ -19,25 +19,17 @@ function inventoryChanged(event)
         -- and clear the starting items from player inventory
         player.clear_items_inside()
     end
-    -- remove any crafted items (and possibly make blueprint of item on cursor)
+    -- remove any crafted items
     for _, stack in pairs(global.players[event.player_index].crafted) do
-        if itemCountAllowed(stack.name, stack.count, player) == 0 then
-            -- not allowed to carry item, but can we make a blueprint of it?
-            if player.clean_cursor() then
-                player.cursor_stack.set_stack(stack)
-                if not replaceWithBlueprint(player.cursor_stack) then
-                    player.cursor_stack.clear()
-                end
-            end
+	if stack.valid and itemCountAllowed(stack.name, stack.count, player) == 0 then
+            player.remove_item{name = stack.name, count = stack.count}
         end
-        player.remove_item{name = stack.name, count = stack.count}
     end
     global.players[event.player_index].crafted = {}
 
     -- player is only allowed to carry blueprints and some whitelisted items
     -- everything else goes into entity opened or entity beneath mouse cursor
     local inventory_main = player.get_inventory(defines.inventory.god_main)
-    local inventory_bar = player.get_inventory(defines.inventory.god_quickbar)
     local scanInventory = function(inventory, blueprints, items)
         for i = 1, #inventory do
             local item_stack = inventory[i]
@@ -65,7 +57,6 @@ function inventoryChanged(event)
     end
     local blueprints = {}
     local items = {}
-    scanInventory(inventory_bar, blueprints, items)
     scanInventory(inventory_main, blueprints, items)
     global.players[event.player_index].inventory_items = items
 
@@ -594,7 +585,6 @@ script.on_event(defines.events.on_player_pipette, function(event)
 end)
 
 script.on_event(defines.events.on_player_main_inventory_changed, inventoryChanged)
-script.on_event(defines.events.on_player_quickbar_inventory_changed, inventoryChanged)
 
 script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
     if global.creative then

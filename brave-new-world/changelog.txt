@@ -1,4 +1,11 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.4.1
+Date: 01. 03. 2019
+  Changes:
+    - Hotfixes for 0.17
+    - Power poles can be duplicated and the integration with the new shortcut
+    bar coule be better
+---------------------------------------------------------------------------------------------------
 Version: 2.4.0
 Date: 14. 10. 2018
   Changes:
