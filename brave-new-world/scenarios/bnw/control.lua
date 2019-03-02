@@ -130,20 +130,8 @@ function itemCountAllowed(name, count, player)
     elseif item.type == "blueprint" or item.type == "deconstruction-item" or item.type == "blueprint-book" or item.type == "selection-tool" or name == "artillery-targeting-remote" or name == "upgrade-planner" then
         -- these only place ghosts or are utility items
         return count
-    elseif place_type == "locomotive" or place_type == "cargo-wagon" or place_type == "fluid-wagon" or place_type == "artillery-wagon" then
-        -- locomotives and wagons must be placed manually
-        return count
-    elseif name == "rail" then
-        -- rail stuff can't be (correctly) built directly with blueprints, allow 10 rails for the short range rail planner
-        return 10
-    elseif name == "train-stop" or name == "rail-signal" or name == "rail-chain-signal" then
-        -- rail stuff can't be (correctly) built directly with blueprints, allow one that we'll later replace with a ghost
-        return 1
     elseif place_type == "car" then
         -- let users put down cars & tanks
-        return count
-    elseif name == "landfill" or name == "cliff-explosives" then
-        -- let users fill in water and remove cliffs
         return count
     elseif item.place_as_equipment_result then
         -- let user carry equipment
