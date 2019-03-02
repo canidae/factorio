@@ -339,6 +339,7 @@ function setupForce(force, surface, x, y, seablock_enabled)
     chest_inventory.insert{name = "logistic-chest-passive-provider", count = 4}
     chest_inventory.insert{name = "logistic-chest-requester", count = 4}
     chest_inventory.insert{name = "lab", count = 2}
+    chest_inventory.insert{name = "gun-turret", count = 1}
     if seablock_enabled then
         -- need some stuff for SeaBlock so we won't get stuck (also slightly accelerate gameplay)
         chest_inventory.insert{name = "ore-crusher", count = 4}
