@@ -98,7 +98,7 @@ data:extend({
 	{
 		type = "custom-input",
 		name = "auto_research_toggle",
-		key_sequence = "SHIFT + t"
+		key_sequence = "SHIFT + T"
 	},
 
     -- sprites
