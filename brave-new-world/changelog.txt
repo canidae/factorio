@@ -1,4 +1,16 @@
 ---------------------------------------------------------------------------------------------------
+Version: 3.0.0
+Date: 02. 03. 2019
+  Changes:
+    - Fixes for 0.17, will not work correctly for 0.16
+    - Allow 0.17 upgrade-planner to be used
+    - Remove inventory of rail signals, trains, wagons, landfil and
+    cliff-explosives since 0.17 can place those just fine.
+  Bugs:
+    - I was able to duplicate power poles. Not sure if that is new.
+    - Integration with the ghost cursor is missing, so the blueprints will
+    still clutter your inventory
+---------------------------------------------------------------------------------------------------
 Version: 2.4.0
 Date: 14. 10. 2018
   Changes:

@@ -19,25 +19,17 @@ function inventoryChanged(event)
         -- and clear the starting items from player inventory
         player.clear_items_inside()
     end
-    -- remove any crafted items (and possibly make blueprint of item on cursor)
+    -- remove any crafted items
     for _, stack in pairs(global.players[event.player_index].crafted) do
-        if itemCountAllowed(stack.name, stack.count, player) == 0 then
-            -- not allowed to carry item, but can we make a blueprint of it?
-            if player.clean_cursor() then
-                player.cursor_stack.set_stack(stack)
-                if not replaceWithBlueprint(player.cursor_stack) then
-                    player.cursor_stack.clear()
-                end
-            end
+	if stack.valid and itemCountAllowed(stack.name, stack.count, player) == 0 then
+            player.remove_item{name = stack.name, count = stack.count}
         end
-        player.remove_item{name = stack.name, count = stack.count}
     end
     global.players[event.player_index].crafted = {}
 
     -- player is only allowed to carry blueprints and some whitelisted items
     -- everything else goes into entity opened or entity beneath mouse cursor
     local inventory_main = player.get_inventory(defines.inventory.god_main)
-    local inventory_bar = player.get_inventory(defines.inventory.god_quickbar)
     local scanInventory = function(inventory, blueprints, items)
         for i = 1, #inventory do
             local item_stack = inventory[i]
@@ -65,7 +57,6 @@ function inventoryChanged(event)
     end
     local blueprints = {}
     local items = {}
-    scanInventory(inventory_bar, blueprints, items)
     scanInventory(inventory_main, blueprints, items)
     global.players[event.player_index].inventory_items = items
 
@@ -136,23 +127,11 @@ function itemCountAllowed(name, count, player)
     elseif place_type == "electric-pole" then
         -- allow user to carry one of each power pole, makes it easier to place poles at max distance
         return 1
-    elseif item.type == "blueprint" or item.type == "deconstruction-item" or item.type == "blueprint-book" or item.type == "selection-tool" or name == "artillery-targeting-remote" then
+    elseif item.type == "blueprint" or item.type == "deconstruction-item" or item.type == "blueprint-book" or item.type == "selection-tool" or name == "artillery-targeting-remote" or name == "upgrade-planner" then
         -- these only place ghosts or are utility items
         return count
-    elseif place_type == "locomotive" or place_type == "cargo-wagon" or place_type == "fluid-wagon" or place_type == "artillery-wagon" then
-        -- locomotives and wagons must be placed manually
-        return count
-    elseif name == "rail" then
-        -- rail stuff can't be (correctly) built directly with blueprints, allow 10 rails for the short range rail planner
-        return 10
-    elseif name == "train-stop" or name == "rail-signal" or name == "rail-chain-signal" then
-        -- rail stuff can't be (correctly) built directly with blueprints, allow one that we'll later replace with a ghost
-        return 1
     elseif place_type == "car" then
         -- let users put down cars & tanks
-        return count
-    elseif name == "landfill" or name == "cliff-explosives" then
-        -- let users fill in water and remove cliffs
         return count
     elseif item.place_as_equipment_result then
         -- let user carry equipment
@@ -360,6 +339,7 @@ function setupForce(force, surface, x, y, seablock_enabled)
     chest_inventory.insert{name = "logistic-chest-passive-provider", count = 4}
     chest_inventory.insert{name = "logistic-chest-requester", count = 4}
     chest_inventory.insert{name = "lab", count = 2}
+    chest_inventory.insert{name = "gun-turret", count = 1}
     if seablock_enabled then
         -- need some stuff for SeaBlock so we won't get stuck (also slightly accelerate gameplay)
         chest_inventory.insert{name = "ore-crusher", count = 4}
@@ -483,9 +463,6 @@ script.on_event(defines.events.on_player_created, function(event)
     -- enable cheat mode
     player.cheat_mode = true
 
-    -- print tip
-    player.print({"startup_tip_1"})
-
     -- setup force
     setupForce(player.force, player.surface, 0, 0, game.active_mods["SeaBlock"])
     preventMining(player)
@@ -565,7 +542,7 @@ script.on_event(defines.events.on_player_crafted_item, function(event)
     end
     local crafted = global.players[event.player_index].crafted
     local item = game.item_prototypes[event.item_stack.name or ""]
-    if item.type == "blueprint" or item.type == "deconstruction-item" or item.type == "blueprint-book" or item.type == "selection-tool" then
+    if item.type == "blueprint" or item.type == "deconstruction-item" or item.type == "blueprint-book" or item.type == "selection-tool" or item.type == "upgrade-planner" then
         -- let user craft these items
         return
     end
@@ -594,7 +571,6 @@ script.on_event(defines.events.on_player_pipette, function(event)
 end)
 
 script.on_event(defines.events.on_player_main_inventory_changed, inventoryChanged)
-script.on_event(defines.events.on_player_quickbar_inventory_changed, inventoryChanged)
 
 script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
     if global.creative then
@@ -608,23 +584,6 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
         global.players[event.player_index].last_built_entity = nil
     end
     if cursor and cursor.valid_for_read then
-        if cursor.is_deconstruction_item then
-            local was_replacing = global.players[event.player_index].replace_entities and next(global.players[event.player_index].replace_entities)
-            global.players[event.player_index].replace_entities = {}
-            for i = 11, cursor.entity_filter_count - 10 do
-                local from = cursor.get_entity_filter(i)
-                local to = cursor.get_entity_filter(i + 10)
-                if from and to then
-                    global.players[event.player_index].replace_entities[from] = to
-                    -- remove "to" filter to prevent user from removing ghosts of target entity
-                    cursor.set_entity_filter(i + 10, nil)
-                    player.print({"replace_entity", {"entity-name." .. from}, {"entity-name." .. to}})
-                end
-            end
-            if was_replacing and not next(global.players[event.player_index].replace_entities) then
-                player.print{"stopped_replacing"}
-            end
-        end
         local count_remaining = itemCountAllowed(cursor.name, cursor.count, player)
         local to_remove = cursor.count - count_remaining
         if to_remove > 0 then
@@ -662,47 +621,6 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
     end
     if out_of_storage then
         player.print({"out-of-storage"})
-    end
-end)
-
-script.on_event(defines.events.on_marked_for_deconstruction, function(event)
-    if global.creative then
-        return
-    end
-    if not event.player_index then
-        return
-    end
-    local entity = event.entity
-    local player = game.players[event.player_index]
-    if player.cursor_stack and player.cursor_stack.valid_for_read and player.cursor_stack.is_deconstruction_item then
-        if global.players[event.player_index].replace_entities and global.players[event.player_index].replace_entities[entity.name] then
-            -- using pcall in case someone tries to create a ghost of a fish or something
-            local create_ghost = function()
-                global.tmpstack.set_stack{name = "blueprint", count = 1}
-                entity.cancel_deconstruction(entity.force) -- must cancel deconstruction or it won't be added to blueprint
-                global.tmpstack.create_blueprint{surface = entity.surface, force = entity.force, area = {entity.position, entity.position}}
-                entity.order_deconstruction(entity.force)
-                local blueprint = nil
-                for _, bp_entity in pairs(global.tmpstack.get_blueprint_entities()) do
-                    if bp_entity.name == entity.name then
-                        bp_entity.name = global.players[event.player_index].replace_entities[entity.name]
-                        blueprint = {bp_entity}
-                    end
-                end
-                global.tmpstack.set_blueprint_entities(blueprint)
-                global.tmpstack.build_blueprint{surface = entity.surface, force = entity.force, position = entity.position, direction = defines.direction.north}
-                -- any wires connected to entity?
-                local wires = entity.circuit_connection_definitions
-                if wires and #wires > 0 then
-                    for i = 1, #wires do
-                        -- in case target entity is lost
-                        wires[i].position = wires[i].target_entity.position
-                    end
-                    global.forces[entity.force.name].rewires[entity.position.x .. ";" .. entity.position.y] = wires
-                end
-            end
-            pcall(create_ghost)
-        end
     end
 end)
 
