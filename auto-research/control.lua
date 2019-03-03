@@ -69,9 +69,12 @@ function setAutoResearch(force, enabled)
     end
     local config = getConfig(force)
     config.enabled = enabled
+    force.research_queue_enabled = not enabled
 
-    -- start new research
-    startNextResearch(force)
+    if enabled then
+        -- start new research
+        startNextResearch(force)
+    end
 end
 
 function setQueuedOnly(force, enabled)
@@ -397,10 +400,9 @@ gui = {
         end
     end,
 
-    onClick = function(event)
+    onCheckboxClick = function(event)
         local player = game.players[event.player_index]
         local force = player.force
-        local config = getConfig(force)
         local name = event.element.name
         if name == "auto_research_enabled" then
             setAutoResearch(force, event.element.state)
@@ -412,7 +414,15 @@ gui = {
             setAnnounceCompletedResearch(force, event.element.state)
         elseif name == "auto_research_deprioritize_infinite_tech" then
             setDeprioritizeInfiniteTech(force, event.element.state)
-        elseif name == "auto_research_search_text" then
+        end
+    end,
+
+    onClick = function(event)
+        local player = game.players[event.player_index]
+        local force = player.force
+        local config = getConfig(force)
+        local name = event.element.name
+        if name == "auto_research_search_text" then
             if event.button == defines.mouse_button_type.right then
                 player.gui.top.auto_research_gui.flow.searchflow.auto_research_search_text.text = ""
                 gui.updateSearchResult(player, player.gui.top.auto_research_gui.flow.searchflow.auto_research_search_text.text)
@@ -689,7 +699,7 @@ script.on_event(defines.events.on_force_created, function(event)
     getConfig(event.force) -- triggers initialization of force config
 end)
 script.on_event(defines.events.on_research_finished, onResearchFinished)
-script.on_event(defines.events.on_gui_checked_state_changed, gui.onClick)
+script.on_event(defines.events.on_gui_checked_state_changed, gui.onCheckboxClick)
 script.on_event(defines.events.on_gui_click, gui.onClick)
 script.on_event(defines.events.on_gui_text_changed, function(event)
     if event.element.name ~= "auto_research_search_text" then
