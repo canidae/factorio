@@ -1,9 +1,15 @@
 ---------------------------------------------------------------------------------------------------
+Version: 5.0.1.
+Date: 03. 03. 2019
+  Changes:
+    - Keybinding (Shift-T) should work again.
+    - Filtering search results by ingredients should work properly again.
+---------------------------------------------------------------------------------------------------
 Version: 5.0.0.
 Date: 03. 03. 2019
   Changes:
-    - Updated for Factorio 0.17
-    - When AR is enabled, the in game research queue will be disabled
+    - Updated for Factorio 0.17.
+    - When AR is enabled, the in game research queue will be disabled.
 ---------------------------------------------------------------------------------------------------
 Version: 4.3.1
 Date: 03. 01. 2019

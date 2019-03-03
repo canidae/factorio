@@ -5,9 +5,9 @@ Date: 03. 03. 2019
     - Updated for Factorio 0.17 (github.com/asdfuser)
     - Allow 0.17 upgrade-planner to be used (github.com/asdfuser)
     - Remove inventory of rail signals, trains, wagons, landfil and cliff-explosives since 0.17 can place those just fine (github.com/asdfuser)
-	- Added gun turrets as the locals are more aggressive in 0.17 (github.com/asdfuser)
-	- German localization (github.com/asdfuser)
-	- Tweaked starting equipment (Assembler 1 instead of Assembler 3, slightly more chests/inserters/splitters/underground belts) (canidae)
+    - Added gun turrets as the locals are more aggressive in 0.17 (github.com/asdfuser)
+    - German localization (github.com/asdfuser)
+    - Tweaked starting equipment (Assembler 1 instead of Assembler 3, slightly more chests/inserters/splitters/underground belts) (canidae)
   Bugs:
     - I was able to duplicate power poles. Not sure if that is new (github.com/asdfuser)
     - Integration with the ghost cursor is missing, so the blueprints will still clutter your inventory (github.com/asdfuser)
