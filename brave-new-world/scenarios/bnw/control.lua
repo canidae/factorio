@@ -321,25 +321,28 @@ function setupForce(force, surface, x, y, seablock_enabled)
     local chest = surface.create_entity{name = "logistic-chest-storage", position = {x + 1, y + 4}, force = force}
     local chest_inventory = chest.get_inventory(defines.inventory.chest)
     chest_inventory.insert{name = "transport-belt", count = 400}
-    chest_inventory.insert{name = "underground-belt", count = 16}
-    chest_inventory.insert{name = "splitter", count = 8}
+    chest_inventory.insert{name = "underground-belt", count = 20}
+    chest_inventory.insert{name = "splitter", count = 10}
     chest_inventory.insert{name = "pipe", count = 20}
     chest_inventory.insert{name = "pipe-to-ground", count = 10}
     chest_inventory.insert{name = "burner-inserter", count = 4}
-    chest_inventory.insert{name = "inserter", count = 16}
+    chest_inventory.insert{name = "inserter", count = 20}
     chest_inventory.insert{name = "medium-electric-pole", count = 50}
     chest_inventory.insert{name = "small-lamp", count = 10}
     chest_inventory.insert{name = "stone-furnace", count = 4}
     chest_inventory.insert{name = "offshore-pump", count = 1}
     chest_inventory.insert{name = "boiler", count = 1}
     chest_inventory.insert{name = "steam-engine", count = 2}
-    chest_inventory.insert{name = "assembling-machine-3", count = 4}
+    chest_inventory.insert{name = "assembling-machine-1", count = 4}
     chest_inventory.insert{name = "roboport", count = 4}
-    chest_inventory.insert{name = "logistic-chest-storage", count = 4}
+    chest_inventory.insert{name = "logistic-chest-storage", count = 2}
     chest_inventory.insert{name = "logistic-chest-passive-provider", count = 4}
     chest_inventory.insert{name = "logistic-chest-requester", count = 4}
+    chest_inventory.insert{name = "logistic-chest-buffer", count = 4}
+    chest_inventory.insert{name = "logistic-chest-active-provider", count = 4}
     chest_inventory.insert{name = "lab", count = 2}
-    chest_inventory.insert{name = "gun-turret", count = 1}
+    chest_inventory.insert{name = "gun-turret", count = 2}
+    chest_inventory.insert{name = "firearm-magazine", count = 20}
     if seablock_enabled then
         -- need some stuff for SeaBlock so we won't get stuck (also slightly accelerate gameplay)
         chest_inventory.insert{name = "ore-crusher", count = 4}
