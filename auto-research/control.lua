@@ -414,6 +414,10 @@ gui = {
             setAnnounceCompletedResearch(force, event.element.state)
         elseif name == "auto_research_deprioritize_infinite_tech" then
             setDeprioritizeInfiniteTech(force, event.element.state)
+        elseif name == "auto_research_ingredients_filter_search_results" then
+            local config = getConfig(force)
+            config.filter_search_results = event.element.state
+            gui.updateSearchResult(player, player.gui.top.auto_research_gui.flow.searchflow.auto_research_search_text.text)
         end
     end,
 
@@ -427,9 +431,6 @@ gui = {
                 player.gui.top.auto_research_gui.flow.searchflow.auto_research_search_text.text = ""
                 gui.updateSearchResult(player, player.gui.top.auto_research_gui.flow.searchflow.auto_research_search_text.text)
             end
-        elseif name == "auto_research_ingredients_filter_search_results" then
-            config.filter_search_results = event.element.state
-            gui.updateSearchResult(player, player.gui.top.auto_research_gui.flow.searchflow.auto_research_search_text.text)
         elseif string.find(name, "auto_research_research") then
             config.research_strategy = string.match(name, "^auto_research_research_(.*)$")
             player.gui.top.auto_research_gui.flow.research_strategies_one.auto_research_research_fast.state = (config.research_strategy == "fast")
