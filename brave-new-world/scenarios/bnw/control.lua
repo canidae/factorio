@@ -559,27 +559,6 @@ script.on_event(defines.events.on_player_crafted_item, function(event)
     crafted[#crafted + 1] = {name=event.item_stack.name, count=event.item_stack.count}
 end)
 
-script.on_event(defines.events.on_player_pipette, function(event)
-    if global.creative then
-        return
-    end
-    local player = game.players[event.player_index]
-    if not player.cursor_stack or not player.cursor_stack.valid_for_read then
-        return
-    end
-    local name = player.cursor_stack.name
-    if itemCountAllowed(name, player.cursor_stack.count, player) > 0 then
-        -- some entities may be carried, but only allow pipetting if player got item in inventory (or cheat mode will make some)
-        if not global.players[event.player_index].inventory_items[name] then
-            player.cursor_stack.clear()
-        end
-    else
-        if not replaceWithBlueprint(player.cursor_stack, player.selected and player.selected.direction) then
-            player.cursor_stack.clear()
-        end
-    end
-end)
-
 script.on_event(defines.events.on_player_main_inventory_changed, inventoryChanged)
 
 script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
