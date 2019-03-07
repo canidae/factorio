@@ -1,3 +1,21 @@
+function migrate(config)
+    local base_ver = config.mod_changes.base
+
+    -- TODO: Check for bnw change mod version, currently broken...
+    -- Updating from (pre) 2.2.0
+    if global.seablocked == nil then
+        global.seablocked = true
+    end
+
+    if base_ver and string.match(base_ver.old_version, "0[.]16") and
+        string.match(base_ver.new_version, "0[.]17") then
+        -- TODO: Setup the quickbar slots, remove simple
+        -- blueprints from inventory
+
+    end
+end
+script.on_configuration_changed(migrate)
+
 function inventoryChanged(event)
     if global.creative then
         return
