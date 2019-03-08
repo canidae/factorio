@@ -1,3 +1,78 @@
+default_qb_slots = {
+        [1]  = "transport-belt",
+        [2]  = "underground-belt",
+        [3]  = "splitter",
+        [4]  = "inserter",
+        [5]  = "long-handed-inserter",
+        [6]  = "medium-electric-pole",
+        [7]  = "assembling-machine-1",
+        [8]  = "small-lamp",
+        [9]  = "stone-furnace",
+        [10] = "electric-mining-drill",
+        [11] = "roboport",
+        [12] = "logistic-chest-storage",
+        [13] = "logistic-chest-requester",
+        [14] = "logistic-chest-passive-provider",
+        [15] = "logistic-chest-active-provider",
+        [16] = "gun-turret",
+        [17] = "stone-wall",
+        [18] = nil,
+        [19] = nil,
+        [20] = "radar",
+        [21] = "pipe-to-ground",
+        [22] = "pipe",
+        [23] = "boiler",
+        [24] = "steam-engine",
+        [25] = "burner-inserter"
+}
+
+function migrate(config)
+    local base_ver = config.mod_changes.base
+
+    -- TODO: Check for bnw change mod version, currently broken...
+    -- Updating from (pre) 2.2.0
+    if global.seablocked == nil then
+        global.seablocked = true
+    end
+
+    if base_ver and string.match(base_ver.old_version, "0[.]16") and
+        string.match(base_ver.new_version, "0[.]17") then
+     
+        for i,_ in pairs(global.players) do
+            local player = game.players[i]
+            -- Enable the research queue
+            player.force.research_queue_enabled = true
+
+            -- Set-up a sane default for the quickbar
+            for i = 1, 100 do
+                if not player.get_quick_bar_slot(i) then
+                    if default_qb_slots[i] then
+                        player.set_quick_bar_slot(i, default_qb_slots[i])
+                    end
+                end
+            end
+
+            -- Remove the simple blueprints from the player inventory
+            local inventory = player.get_main_inventory()
+
+            for i = 1, #inventory do
+                item = inventory[i]
+                -- Only remove blueprints (not books)
+                if item.valid_for_read and item.is_blueprint and item.type == "blueprint" then
+                    if item.label then
+                        -- Remove if it's named after
+                        -- an item
+                        if game.item_prototypes[item.label] then
+                            item.clear()
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+script.on_configuration_changed(migrate)
+
 function inventoryChanged(event)
     if global.creative then
         return
@@ -19,11 +94,14 @@ function inventoryChanged(event)
         -- and clear the starting items from player inventory
         player.clear_items_inside()
     end
-    -- remove any crafted items
-    for _, stack in pairs(global.players[event.player_index].crafted) do
-	if stack.valid and itemCountAllowed(stack.name, stack.count, player) == 0 then
-            player.remove_item{name = stack.name, count = stack.count}
+    -- remove any crafted items (and possibly make blueprint of item on cursor)
+    for _, item in pairs(global.players[event.player_index].crafted) do
+        if itemCountAllowed(item.name, item.count, player) == 0 then
+            if player.clean_cursor() then
+                player.cursor_stack.clear()
+            end
         end
+        player.remove_item(item)
     end
     global.players[event.player_index].crafted = {}
 
@@ -84,8 +162,8 @@ function inventoryChanged(event)
                     end
                 end
             end
-            if allowed == 0 and not blueprints[name] then
-                if not replaceWithBlueprint(item.slot) then
+            if allowed == 0 then
+                if not replaceWithGhost(item.slot, player) then
                     item.slot.clear()
                 end
             end
@@ -127,7 +205,7 @@ function itemCountAllowed(name, count, player)
     elseif place_type == "electric-pole" then
         -- allow user to carry one of each power pole, makes it easier to place poles at max distance
         return 1
-    elseif item.type == "blueprint" or item.type == "deconstruction-item" or item.type == "blueprint-book" or item.type == "selection-tool" or name == "artillery-targeting-remote" or name == "upgrade-planner" then
+    elseif item.type == "blueprint" or item.type == "deconstruction-item" or item.type == "blueprint-book" or item.type == "selection-tool" or name == "artillery-targeting-remote" or item.type == "upgrade-item" or item.type == "copy-paste-tool" or item.type == "cut-paste-tool" then
         -- these only place ghosts or are utility items
         return count
     elseif place_type == "car" then
@@ -143,8 +221,14 @@ function itemCountAllowed(name, count, player)
     return 0
 end
 
-function replaceWithBlueprint(item_stack, direction)
+function replaceWithGhost(item_stack, player)
     local prototype = item_stack.prototype
+    player.cursor_stack.clear()
+    player.cursor_ghost = prototype
+    return true
+end
+
+function replaceWithBlueprint(item_stack, direction)
     local place_entity = prototype.place_result
     local place_tile = prototype.place_as_tile_result
     local setBlueprintEntities = function()
@@ -466,6 +550,15 @@ script.on_event(defines.events.on_player_created, function(event)
     -- enable cheat mode
     player.cheat_mode = true
 
+    -- Set-up a sane default for the quickbar
+    for i = 1, 100 do
+        if not player.get_quick_bar_slot(i) then
+            if default_qb_slots[i] then
+                player.set_quick_bar_slot(i, default_qb_slots[i])
+            end
+        end
+    end
+
     -- setup force
     setupForce(player.force, player.surface, 0, 0, game.active_mods["SeaBlock"])
     preventMining(player)
@@ -489,7 +582,7 @@ script.on_event(defines.events.on_built_entity, function(event)
         end
         global.tmpstack.set_stack(player.cursor_stack)
         player.cursor_stack.set_stack(event.stack)
-        local blueprintable = replaceWithBlueprint(player.cursor_stack)
+        local blueprintable = replaceWithGhost(player.cursor_stack, player)
         player.cursor_stack.set_stack(global.tmpstack)
         -- if entity can be blueprinted then set last_built_entity and put item back on cursor
         if blueprintable then
@@ -549,28 +642,7 @@ script.on_event(defines.events.on_player_crafted_item, function(event)
         -- let user craft these items
         return
     end
-    crafted[#crafted + 1] = event.item_stack
-end)
-
-script.on_event(defines.events.on_player_pipette, function(event)
-    if global.creative then
-        return
-    end
-    local player = game.players[event.player_index]
-    if not player.cursor_stack or not player.cursor_stack.valid_for_read then
-        return
-    end
-    local name = player.cursor_stack.name
-    if itemCountAllowed(name, player.cursor_stack.count, player) > 0 then
-        -- some entities may be carried, but only allow pipetting if player got item in inventory (or cheat mode will make some)
-        if not global.players[event.player_index].inventory_items[name] then
-            player.cursor_stack.clear()
-        end
-    else
-        if not replaceWithBlueprint(player.cursor_stack, player.selected and player.selected.direction) then
-            player.cursor_stack.clear()
-        end
-    end
+    crafted[#crafted + 1] = {name=event.item_stack.name, count=event.item_stack.count}
 end)
 
 script.on_event(defines.events.on_player_main_inventory_changed, inventoryChanged)
@@ -596,7 +668,7 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
             if count_remaining > 0 then
                 cursor.count = count_remaining
             else
-                if not replaceWithBlueprint(cursor) then
+                if not replaceWithGhost(cursor, player) then
                     cursor.clear()
                 end
             end
