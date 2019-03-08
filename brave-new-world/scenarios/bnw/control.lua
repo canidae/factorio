@@ -162,8 +162,8 @@ function inventoryChanged(event)
                     end
                 end
             end
-            if allowed == 0 and not blueprints[name] then
-                if not replaceWithBlueprint(item.slot) then
+            if allowed == 0 then
+                if not replaceWithGhost(item.slot, player) then
                     item.slot.clear()
                 end
             end
@@ -221,8 +221,14 @@ function itemCountAllowed(name, count, player)
     return 0
 end
 
-function replaceWithBlueprint(item_stack, direction)
+function replaceWithGhost(item_stack, player)
     local prototype = item_stack.prototype
+    player.cursor_stack.clear()
+    player.cursor_ghost = prototype
+    return true
+end
+
+function replaceWithBlueprint(item_stack, direction)
     local place_entity = prototype.place_result
     local place_tile = prototype.place_as_tile_result
     local setBlueprintEntities = function()
@@ -567,7 +573,7 @@ script.on_event(defines.events.on_built_entity, function(event)
         end
         global.tmpstack.set_stack(player.cursor_stack)
         player.cursor_stack.set_stack(event.stack)
-        local blueprintable = replaceWithBlueprint(player.cursor_stack)
+        local blueprintable = replaceWithGhost(player.cursor_stack, player)
         player.cursor_stack.set_stack(global.tmpstack)
         -- if entity can be blueprinted then set last_built_entity and put item back on cursor
         if blueprintable then
@@ -653,7 +659,7 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
             if count_remaining > 0 then
                 cursor.count = count_remaining
             else
-                if not replaceWithBlueprint(cursor) then
+                if not replaceWithGhost(cursor, player) then
                     cursor.clear()
                 end
             end
