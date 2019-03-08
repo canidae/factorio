@@ -97,12 +97,8 @@ function inventoryChanged(event)
     -- remove any crafted items (and possibly make blueprint of item on cursor)
     for _, item in pairs(global.players[event.player_index].crafted) do
         if itemCountAllowed(item.name, item.count, player) == 0 then
-            -- not allowed to carry item, but can we make a blueprint of it?
             if player.clean_cursor() then
-                player.cursor_stack.set_stack(item)
-                if not replaceWithBlueprint(player.cursor_stack) then
-                    player.cursor_stack.clear()
-                end
+                player.cursor_stack.clear()
             end
         end
         player.remove_item(item)
