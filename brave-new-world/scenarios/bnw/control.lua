@@ -556,7 +556,7 @@ script.on_event(defines.events.on_player_crafted_item, function(event)
         -- let user craft these items
         return
     end
-    crafted[#crafted + 1] = event.item_stack
+    crafted[#crafted + 1] = {name=event.item_stack.name, count=event.item_stack.count}
 end)
 
 script.on_event(defines.events.on_player_pipette, function(event)
