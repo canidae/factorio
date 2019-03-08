@@ -1,3 +1,31 @@
+default_qb_slots = {
+        [1]  = "transport-belt",
+        [2]  = "underground-belt",
+        [3]  = "splitter",
+        [4]  = "inserter",
+        [5]  = "long-handed-inserter",
+        [6]  = "medium-electric-pole",
+        [7]  = "assembling-machine-1",
+        [8]  = "small-lamp",
+        [9]  = "stone-furnace",
+        [10] = "electric-mining-drill",
+        [11] = "roboport",
+        [12] = "logistic-chest-storage",
+        [13] = "logistic-chest-requester",
+        [14] = "logistic-chest-passive-provider",
+        [15] = "logistic-chest-active-provider",
+        [16] = "gun-turret",
+        [17] = "stone-wall",
+        [18] = nil,
+        [19] = nil,
+        [20] = "radar",
+        [21] = "pipe-to-ground",
+        [22] = "pipe",
+        [23] = "boiler",
+        [24] = "steam-engine",
+        [25] = "burner-inserter"
+}
+
 function migrate(config)
     local base_ver = config.mod_changes.base
 
@@ -9,9 +37,38 @@ function migrate(config)
 
     if base_ver and string.match(base_ver.old_version, "0[.]16") and
         string.match(base_ver.new_version, "0[.]17") then
-        -- TODO: Setup the quickbar slots, remove simple
-        -- blueprints from inventory
+     
+        for i,_ in pairs(global.players) do
+            local player = game.players[i]
+            -- Enable the research queue
+            player.force.research_queue_enabled = true
 
+            -- Set-up a sane default for the quickbar
+            for i = 1, 100 do
+                if not player.get_quick_bar_slot(i) then
+                    if default_qb_slots[i] then
+                        player.set_quick_bar_slot(i, default_qb_slots[i])
+                    end
+                end
+            end
+
+            -- Remove the simple blueprints from the player inventory
+            local inventory = player.get_main_inventory()
+
+            for i = 1, #inventory do
+                item = inventory[i]
+                -- Only remove blueprints (not books)
+                if item.valid_for_read and item.is_blueprint and item.type == "blueprint" then
+                    if item.label then
+                        -- Remove if it's named after
+                        -- an item
+                        if game.item_prototypes[item.label] then
+                            item.clear()
+                        end
+                    end
+                end
+            end
+        end
     end
 end
 script.on_configuration_changed(migrate)
