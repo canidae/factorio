@@ -101,6 +101,7 @@ function inventoryChanged(event)
                 player.cursor_stack.clear()
             end
         end
+        player.cursor_ghost = game.item_prototypes[item.name]
         player.remove_item(item)
     end
     global.players[event.player_index].crafted = {}
