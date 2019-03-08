@@ -550,6 +550,15 @@ script.on_event(defines.events.on_player_created, function(event)
     -- enable cheat mode
     player.cheat_mode = true
 
+    -- Set-up a sane default for the quickbar
+    for i = 1, 100 do
+        if not player.get_quick_bar_slot(i) then
+            if default_qb_slots[i] then
+                player.set_quick_bar_slot(i, default_qb_slots[i])
+            end
+        end
+    end
+
     -- setup force
     setupForce(player.force, player.surface, 0, 0, game.active_mods["SeaBlock"])
     preventMining(player)
