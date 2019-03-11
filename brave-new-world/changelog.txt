@@ -2,6 +2,7 @@
 Version: 3.1.0
 Date: 11. 03. 2019
   Changes:
+    - NOTE: You should enable "Pick ghost items if no items are available" in Settings -> Interface for a better experience with this scenario
     - Replaced blueprints of items with ghost cursor (github.com/asdfuser)
     - Allow copy/paste tool (github.com/asdfuser)
     - Support migration of save games pre 0.17 (github.com/asdfuser)
