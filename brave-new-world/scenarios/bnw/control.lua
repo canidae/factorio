@@ -282,6 +282,7 @@ function setupForce(force, surface, x, y, seablock_enabled)
         -- force already exist
         return
     end
+    global.forces[force.name] = {}
 
     -- setup event listeners for creative mode
     if remote.interfaces["creative-mode"] then
