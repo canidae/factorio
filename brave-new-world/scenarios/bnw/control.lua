@@ -13,17 +13,18 @@ default_qb_slots = {
         [12] = "logistic-chest-storage",
         [13] = "logistic-chest-requester",
         [14] = "logistic-chest-passive-provider",
-        [15] = "logistic-chest-active-provider",
+        [15] = "logistic-chest-buffer",
         [16] = "gun-turret",
         [17] = "stone-wall",
         [18] = nil,
         [19] = nil,
         [20] = "radar",
-        [21] = "pipe-to-ground",
-        [22] = "pipe",
-        [23] = "boiler",
-        [24] = "steam-engine",
-        [25] = "burner-inserter"
+        [21] = "offshore-pump",
+        [22] = "pipe-to-ground",
+        [23] = "pipe",
+        [24] = "boiler",
+        [25] = "steam-engine",
+        [26] = "burner-inserter"
 }
 
 function migrate(config)
