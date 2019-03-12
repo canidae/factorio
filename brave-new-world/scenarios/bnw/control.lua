@@ -95,7 +95,7 @@ function inventoryChanged(event)
         -- and clear the starting items from player inventory
         player.clear_items_inside()
     end
-    -- remove any crafted items (and possibly make blueprint of item on cursor)
+    -- remove any crafted items (and possibly make ghost cursor of item)
     for _, item in pairs(global.players[event.player_index].crafted) do
         if itemCountAllowed(item.name, item.count, player) == 0 then
             if player.clean_cursor() then
@@ -107,44 +107,31 @@ function inventoryChanged(event)
     end
     global.players[event.player_index].crafted = {}
 
-    -- player is only allowed to carry blueprints and some whitelisted items
+    -- player is only allowed to carry whitelisted items
     -- everything else goes into entity opened or entity beneath mouse cursor
     local inventory_main = player.get_inventory(defines.inventory.god_main)
-    local scanInventory = function(inventory, blueprints, items)
-        for i = 1, #inventory do
-            local item_stack = inventory[i]
-            if item_stack and item_stack.valid_for_read then
-                if item_stack.is_blueprint and item_stack.label then
-                    if blueprints[item_stack.label] then
-                        -- duplicate blueprint, remove it
-                        item_stack.clear()
-                    else
-                        blueprints[item_stack.label] = true
-                    end
-                else
-                    local name = item_stack.name
-                    if items[name] then
-                        items[name].count = items[name].count + item_stack.count
-                    else
-                        items[name] = {
-                            count = item_stack.count,
-                            slot = item_stack
-                        }
-                    end
-                end
+    local items = {}
+    for i = 1, #inventory_main do
+        local item_stack = inventory_main[i]
+        if item_stack and item_stack.valid_for_read and not item_stack.is_blueprint then
+            local name = item_stack.name
+            if items[name] then
+                items[name].count = items[name].count + item_stack.count
+            else
+                items[name] = {
+                    count = item_stack.count,
+                    slot = item_stack
+                }
             end
         end
     end
-    local blueprints = {}
-    local items = {}
-    scanInventory(inventory_main, blueprints, items)
     global.players[event.player_index].inventory_items = items
 
+    local entity = player.selected or player.opened
     for name, item in pairs(items) do
         local allowed = itemCountAllowed(name, item.count, player)
         local to_remove = item.count - allowed
         if to_remove > 0 then
-            local entity = player.selected or player.opened
             local inserted = 0
             if entity and entity.insert then
                 for _, inventory_id in pairs(defines.inventory) do
@@ -162,11 +149,6 @@ function inventoryChanged(event)
                             break
                         end
                     end
-                end
-            end
-            if allowed == 0 then
-                if not replaceWithGhost(item.slot, player) then
-                    item.slot.clear()
                 end
             end
             local remaining = to_remove - inserted
@@ -190,23 +172,12 @@ end
 function itemCountAllowed(name, count, player)
     local item = game.item_prototypes[name]
     local place_type = item.place_result and item.place_result.type
-    if name == "upgrade-builder2" or name == "droid-pickup-tool" then
-        -- the upgrade planner isn't allowed, it upgrades stuff for free in cheat mode
-        -- the droid pickup tool from Robot Army breaks some of the immersion in this scenario and is thus banned
-        player.print({"item_not_allowed"})
-        return 0
-    elseif name == "red-wire" or name == "green-wire" then
+    if name == "red-wire" or name == "green-wire" then
         -- need these for circuitry, one stack is enough
         return math.min(200, count)
     elseif name == "copper-cable" then
         -- need this for manually connecting poles, but don't want player to manually move stuff around so we'll limit it
         return math.min(20, count)
-    elseif place_type == "pipe-to-ground" then
-        -- allow user to carry one pipe-to-ground, makes it easier to place underground pipes at max distance
-        return 1
-    elseif place_type == "electric-pole" then
-        -- allow user to carry one of each power pole, makes it easier to place poles at max distance
-        return 1
     elseif item.type == "blueprint" or item.type == "deconstruction-item" or item.type == "blueprint-book" or item.type == "selection-tool" or name == "artillery-targeting-remote" or item.type == "upgrade-item" or item.type == "copy-paste-tool" or item.type == "cut-paste-tool" then
         -- these only place ghosts or are utility items
         return count
@@ -221,58 +192,6 @@ function itemCountAllowed(name, count, player)
         return count
     end
     return 0
-end
-
-function replaceWithGhost(item_stack, player)
-    local prototype = item_stack.prototype
-    player.cursor_stack.clear()
-    player.cursor_ghost = prototype
-    return true
-end
-
-function replaceWithBlueprint(item_stack, direction)
-    local place_entity = prototype.place_result
-    local place_tile = prototype.place_as_tile_result
-    local setBlueprintEntities = function()
-        item_stack.set_stack{name = "blueprint", count = 1}
-        if place_entity then
-            local width = (math.ceil(place_entity.selection_box.right_bottom.x * 2) % 2) / 2 - 0.5
-            local height = (math.ceil(place_entity.selection_box.right_bottom.y * 2) % 2) / 2 - 0.5
-            direction = direction or defines.direction.north
-            if direction % 4 == 2 then
-                -- entity is rotated, swap width & height
-                local tmp = width
-                width = height
-                height = tmp
-            end
-            item_stack.set_blueprint_entities({
-                {
-                    entity_number = 1,
-                    name = place_entity.name,
-                    direction = direction,
-                    position = {x = width, y = height}
-                }
-            })
-        end
-        if place_tile then
-            item_stack.set_blueprint_tiles({
-                {
-                    name = place_tile.result.name,
-                    position = {x = 0, y = 0}
-                }
-            })
-        end
-        item_stack.blueprint_icons = {
-            {
-                signal = {type = "item", name = prototype.name},
-                index = 1
-            }
-        }
-        item_stack.label = prototype.name
-    end
-    -- pcall was the easiest way to check if a valid blueprint was made
-    -- (some items produce entities that aren't blueprintable, but there doesn't seem to be a reliable way to detect this)
-    return pcall(setBlueprintEntities)
 end
 
 function setupForce(force, surface, x, y, seablock_enabled)
@@ -485,39 +404,6 @@ function setupForce(force, surface, x, y, seablock_enabled)
     accumulator.energy = 5000000
 end
 
-function convertToGhost(entity)
-    if not entity or not entity.valid then
-        return
-    end
-    -- replace last built entity with ghost
-    local surface = entity.surface
-    local pos = entity.position
-    local force = entity.force
-    global.tmpstack.set_stack{name = "blueprint", count = 1}
-    local width = (math.ceil(entity.selection_box.right_bottom.x * 2) % 2) / 2 - 0.5
-    local height = (math.ceil(entity.selection_box.right_bottom.y * 2) % 2) / 2 - 0.5
-    if direction and direction % 4 == 2 then
-        -- entity is rotated, swap width & height
-        local tmp = width
-        width = height
-        height = tmp
-    end
-    global.tmpstack.set_blueprint_entities({
-        {
-            entity_number = 1,
-            name = entity.name,
-            direction = entity.direction,
-            position = {x = width, y = height}
-        }
-    })
-    -- place blueprint
-    if global.tmpstack.get_blueprint_entities() then
-        -- remove entity
-        entity.destroy()
-        global.tmpstack.build_blueprint{surface = surface, force = force, position = pos, force_build = true}
-    end
-end
-
 function preventMining(player)
     -- prevent mining (this appeared to be reset when loading a 0.16.26 save in 0.16.27)
     player.force.manual_mining_speed_modifier = -0.99999999 -- allows removing ghosts with right-click
@@ -533,13 +419,6 @@ script.on_event(defines.events.on_player_created, function(event)
         inventory_items = {},
         previous_position = player.position
     }
-
-    -- create a "staging" surface that helps with the magic
-    if not game.surfaces.staging then
-        game.create_surface("staging", {width = 1, height = 1, seed = 42})
-        global.chest = game.surfaces.staging.create_entity{name = "wooden-chest", position = {0, 0}}
-        global.tmpstack = global.chest.get_inventory(defines.inventory.chest)[1]
-    end
 
     if player.character then
         player.character.destroy()
@@ -564,61 +443,20 @@ script.on_event(defines.events.on_player_created, function(event)
     preventMining(player)
 end)
 
-script.on_event(defines.events.on_built_entity, function(event)
+script.on_event(defines.events.on_player_pipette, function(event)
     if global.creative then
         return
     end
-    local player = game.players[event.player_index]
-    local entity = event.created_entity
-    local last_entity = global.players[event.player_index].last_built_entity
-    if last_entity then
-        convertToGhost(last_entity)
-        global.players[event.player_index].last_built_entity = nil
-    end
-    if entity.type ~= "entity-ghost" and entity.type ~= "tile-ghost" then
-        -- disconnect electric poles
-        if entity.type == "electric-pole" then
-            entity.disconnect_neighbour()
-        end
-        global.tmpstack.set_stack(player.cursor_stack)
-        player.cursor_stack.set_stack(event.stack)
-        local blueprintable = replaceWithGhost(player.cursor_stack, player)
-        player.cursor_stack.set_stack(global.tmpstack)
-        -- if entity can be blueprinted then set last_built_entity and put item back on cursor
-        if blueprintable then
-            global.players[event.player_index].last_built_entity = event.created_entity
-            -- put item back on cursor
-            if player.cursor_stack and player.cursor_stack.valid_for_read and player.cursor_stack.name == event.stack.name then
-                player.cursor_stack.count = player.cursor_stack.count + event.stack.count
-            else
-                player.cursor_stack.set_stack(event.stack)
-            end
-        end
-    elseif player.cursor_stack and player.cursor_stack.valid_for_read and player.cursor_stack.is_blueprint then
-        -- if player holds blueprint of pipe or underground belt, rotate blueprint
-        local name = player.cursor_stack.label
-        if name == "pipe-to-ground" or name == "underground-belt" or name == "fast-underground-belt" or name == "express-underground-belt" then
-            local entities = player.cursor_stack.get_blueprint_entities()
-            if entities and #entities == 1 then
-                local direction = entities.direction or 0
-                entities[1].direction = ((entities[1].direction or 0) + 4) % 8
-                player.cursor_stack.set_blueprint_entities(entities)
-            end
-        end
-    end
+    game.players[event.player_index].cursor_stack.clear()
+    game.players[event.player_index].cursor_ghost = event.item
 end)
 
 script.on_event(defines.events.on_player_crafted_item, function(event)
     if global.creative then
         return
     end
-    local crafted = global.players[event.player_index].crafted
-    local item = game.item_prototypes[event.item_stack.name or ""]
-    if item.type == "blueprint" or item.type == "deconstruction-item" or item.type == "blueprint-book" or item.type == "selection-tool" or item.type == "upgrade-planner" then
-        -- let user craft these items
-        return
-    end
-    crafted[#crafted + 1] = {name=event.item_stack.name, count=event.item_stack.count}
+    game.players[event.player_index].cursor_ghost = event.item_stack.prototype
+    event.item_stack.count = 0
 end)
 
 script.on_event(defines.events.on_player_main_inventory_changed, inventoryChanged)
@@ -629,11 +467,6 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
     end
     local player = game.players[event.player_index]
     local cursor = player.cursor_stack
-    local last_entity = global.players[event.player_index].last_built_entity
-    if last_entity and (not cursor or not cursor.valid_for_read) then
-        convertToGhost(last_entity)
-        global.players[event.player_index].last_built_entity = nil
-    end
     if cursor and cursor.valid_for_read then
         local count_remaining = itemCountAllowed(cursor.name, cursor.count, player)
         local to_remove = cursor.count - count_remaining
@@ -644,9 +477,8 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
             if count_remaining > 0 then
                 cursor.count = count_remaining
             else
-                if not replaceWithGhost(cursor, player) then
-                    cursor.clear()
-                end
+                player.cursor_stack.clear()
+                player.cursor_ghost = cursor.prototype
             end
         end
     end
@@ -692,6 +524,7 @@ script.on_event(defines.events.on_player_changed_position, function(event)
         return
     end
     local player = game.players[event.player_index]
+    -- TODO: really shouldn't have to do this so often (can we do it in migrate function?)
     preventMining(player)
 
     local config = global.forces[player.force.name]
