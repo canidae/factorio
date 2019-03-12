@@ -282,9 +282,6 @@ function setupForce(force, surface, x, y, seablock_enabled)
         -- force already exist
         return
     end
-    global.forces[force.name] = {
-        rewires = {}
-    }
 
     -- setup event listeners for creative mode
     if remote.interfaces["creative-mode"] then
@@ -606,30 +603,6 @@ script.on_event(defines.events.on_built_entity, function(event)
                 player.cursor_stack.set_blueprint_entities(entities)
             end
         end
-    end
-end)
-
-script.on_event(defines.events.on_robot_built_entity, function(event)
-    if global.creative then
-        return
-    end
-    -- TODO: upgrading and removing ghosts leaves stale entries (memory leak). probably not serious, so issue is ignored for now
-    local entity = event.created_entity
-    local rewires = global.forces[entity.force.name].rewires[entity.position.x .. ";" .. entity.position.y]
-    if rewires then
-        for _, wire in pairs(rewires) do
-            if not wire.target_entity.valid then
-                -- target entity is gone, try to connect to entity at target location
-                local entities = entity.surface.find_entities_filtered{position = wire.position, force = entity.force}
-                if #entities > 0 then
-                    wire.target_entity = entities[1]
-                end
-            end
-            if wire.target_entity.valid then
-                entity.connect_neighbour(wire)
-            end
-        end
-        global.forces[entity.force.name].rewires[entity.position.x .. ";" .. entity.position.y] = nil
     end
 end)
 
