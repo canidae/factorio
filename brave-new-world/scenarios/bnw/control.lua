@@ -27,53 +27,6 @@ default_qb_slots = {
         [26] = "burner-inserter"
 }
 
-function migrate(config)
-    local base_ver = config.mod_changes.base
-
-    -- TODO: Check for bnw change mod version, currently broken...
-    -- Updating from (pre) 2.2.0
-    if global.seablocked == nil then
-        global.seablocked = true
-    end
-
-    if base_ver and string.match(base_ver.old_version, "0[.]16") and
-        string.match(base_ver.new_version, "0[.]17") then
-     
-        for i,_ in pairs(global.players) do
-            local player = game.players[i]
-            -- Enable the research queue
-            player.force.research_queue_enabled = true
-
-            -- Set-up a sane default for the quickbar
-            for i = 1, 100 do
-                if not player.get_quick_bar_slot(i) then
-                    if default_qb_slots[i] then
-                        player.set_quick_bar_slot(i, default_qb_slots[i])
-                    end
-                end
-            end
-
-            -- Remove the simple blueprints from the player inventory
-            local inventory = player.get_main_inventory()
-
-            for i = 1, #inventory do
-                item = inventory[i]
-                -- Only remove blueprints (not books)
-                if item.valid_for_read and item.is_blueprint and item.type == "blueprint" then
-                    if item.label then
-                        -- Remove if it's named after
-                        -- an item
-                        if game.item_prototypes[item.label] then
-                            item.clear()
-                        end
-                    end
-                end
-            end
-        end
-    end
-end
-script.on_configuration_changed(migrate)
-
 function inventoryChanged(event)
     if global.creative then
         return
