@@ -430,8 +430,8 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
             if count_remaining > 0 then
                 cursor.count = count_remaining
             else
-                player.cursor_stack.clear()
                 player.cursor_ghost = cursor.prototype
+                player.cursor_stack.clear()
             end
         end
     end
