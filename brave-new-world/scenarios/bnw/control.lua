@@ -85,39 +85,48 @@ function inventoryChanged(event)
         local allowed = itemCountAllowed(name, item.count, player)
         local to_remove = item.count - allowed
         if to_remove > 0 then
-            local inserted = 0
-            if entity and entity.insert then
-                for _, inventory_id in pairs(defines.inventory) do
-                    local inventory = entity.get_inventory(inventory_id)
-                    if inventory then
-                        local barpos = inventory.hasbar() and inventory.getbar() or nil
-                        if inventory.hasbar() then
-                            inventory.setbar() -- clear bar (the chest size limiter)
-                        end
-                        inserted = inserted + inventory.insert{name = name, count = to_remove - inserted}
-                        if inventory.hasbar() then
-                            inventory.setbar(barpos) -- reset bar
-                        end
-                        if to_remove - inserted <= 0 then
-                            break
-                        end
-                    end
-                end
-            end
-            local remaining = to_remove - inserted
-            local spill_entity = entity or global.forces[player.force.name].roboport
-            remaining = remaining - (remaining > 0 and spill_entity.insert({name = name, count = remaining}) or 0)
-            if remaining > 0 then
-                -- player is not allowed to pick up stuff
-                spill_entity.surface.spill_item_stack(spill_entity.position, {name = name, count = remaining})
-                -- mark spilled items for deconstruction/pickup
-                local pos = spill_entity.position
-                local spilled = spill_entity.surface.find_entities_filtered{area = {{pos.x - 16, pos.y - 16}, {pos.x + 16, pos.y + 16}}, force = "neutral", type = "item-entity"}
-                for _, item in pairs(spilled) do
-                    item.order_deconstruction(spill_entity.force)
-                end
-            end
+            dropItems(player, name, to_remove)
             player.remove_item{name = name, count = to_remove}
+        end
+    end
+end
+
+function dropItems(player, name, count)
+    local entity = player.opened or player.selected
+    local inserted = 0
+    if entity and entity.insert then
+        -- in case picking up items from a limited chest, unset limit, insert, then set limit again
+        for _, inventory_id in pairs(defines.inventory) do
+            local inventory = entity.get_inventory(inventory_id)
+            if inventory then
+                local barpos = inventory.hasbar() and inventory.getbar() or nil
+                if inventory.hasbar() then
+                    inventory.setbar() -- clear bar (the chest size limiter)
+                end
+                inserted = inserted + inventory.insert{name = name, count = count}
+                count = count - inserted
+                if inventory.hasbar() then
+                    inventory.setbar(barpos) -- reset bar
+                end
+                if count <= 0 then
+                    break
+                end
+            end
+        end
+        if count > 0 then
+            -- try a generic insert (although code above should make this redundant)
+            count = count - entity.insert({name = name, count = count})
+        end
+    end
+    if count > 0 then
+        -- now we're forced to spill items
+        entity = entity or global.forces[player.force.name].roboport
+        entity.surface.spill_item_stack(entity.position, {name = name, count = count})
+        -- mark spilled items for deconstruction/pickup
+        local pos = entity.position
+        local spilled = entity.surface.find_entities_filtered{area = {{pos.x - 16, pos.y - 16}, {pos.x + 16, pos.y + 16}}, force = "neutral", type = "item-entity"}
+        for _, item in pairs(spilled) do
+            item.order_deconstruction(entity.force)
         end
     end
 end
@@ -421,14 +430,12 @@ script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
     local player = game.players[event.player_index]
     local cursor = player.cursor_stack
     if cursor and cursor.valid_for_read then
-        local count_remaining = itemCountAllowed(cursor.name, cursor.count, player)
-        local to_remove = cursor.count - count_remaining
+        local allowed = itemCountAllowed(cursor.name, cursor.count, player)
+        local to_remove = cursor.count - allowed
         if to_remove > 0 then
-            local entity = player.opened or player.selected
-            local inserted = entity and entity.insert and entity.insert{name = cursor.name, count = to_remove} or 0
-            local remaining = to_remove - inserted
-            if count_remaining > 0 then
-                cursor.count = count_remaining
+            dropItems(player, cursor.name, to_remove)
+            if allowed > 0 then
+                cursor.count = allowed
             else
                 player.cursor_ghost = cursor.prototype
                 player.cursor_stack.clear()
