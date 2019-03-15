@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 3.2.0
+Date: 15. 03. 2019
+  Changes:
+    - NOTE: Poles/underneathies/underpipes can no longer be drag-placed. It was a hack that I've now removed in the hope of the devs adding this functionality to the ghost cursor.
+	- Fixed issue with disappearing items in some cases
+---------------------------------------------------------------------------------------------------
 Version: 3.1.0
 Date: 11. 03. 2019
   Changes:
