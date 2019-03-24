@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 3.2.1
+Date: 24. 03. 2019
+  Changes:
+    - Added "raise_built" event upon creating starting base to better accomodate other mods such as "Inbuilt Lightning"
+---------------------------------------------------------------------------------------------------
 Version: 3.2.0
 Date: 15. 03. 2019
   Changes:
