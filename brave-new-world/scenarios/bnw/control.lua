@@ -121,13 +121,7 @@ function dropItems(player, name, count)
     if count > 0 then
         -- now we're forced to spill items
         entity = entity or global.forces[player.force.name].roboport
-        entity.surface.spill_item_stack(entity.position, {name = name, count = count})
-        -- mark spilled items for deconstruction/pickup
-        local pos = entity.position
-        local spilled = entity.surface.find_entities_filtered{area = {{pos.x - 16, pos.y - 16}, {pos.x + 16, pos.y + 16}}, force = "neutral", type = "item-entity"}
-        for _, item in pairs(spilled) do
-            item.order_deconstruction(entity.force)
-        end
+        entity.surface.spill_item_stack(entity.position, {name = name, count = count}, false, entity.force, false)
     end
 end
 
