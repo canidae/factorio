@@ -371,6 +371,124 @@ function preventMining(player)
     player.force.manual_mining_speed_modifier = -0.99999999 -- allows removing ghosts with right-click
 end
 
+local distanceSq = function(a, b)
+    return a * a + b * b
+end
+
+function placePoleBetween(from, to, poles_count, reach)
+    local cancel_placing = true
+    local poles_count = (poles_count ~= nil) and poles_count or 2
+    local reach = (reach ~= nil) and reach or to.ghost_prototype.max_wire_distance
+
+    local distance = math.sqrt(distanceSq(to.position.x - from.position.x, to.position.y - from.position.y))
+    
+    -- direction vector (normalized)
+    local position = {
+        x = (to.position.x - from.position.x) / distance,
+        y = (to.position.y - from.position.y) / distance
+    }
+    -- relative position (abs and multipliers are required for correct rounding negative numbers)
+    position = {
+        x = math.floor(math.abs(position.x * reach)) * ((position.x >= 0) and 1 or -1),
+        y = math.floor(math.abs(position.y * reach)) * ((position.y >= 0) and 1 or -1)
+    }
+    -- finally, global position
+    position = {
+        x = from.position.x + position.x,
+        y = from.position.y + position.y
+    }
+    
+    -- check if can place a pole
+    local pole
+    if to.force.is_chunk_charted(to.surface, {x = position.x / 32, y = position.y / 32}) then
+        if to.surface.can_place_entity({
+                name = to.ghost_prototype.name,
+                position = position,
+                build_check_type = defines.build_check_type.ghost_place,
+                forced = true
+        }) then
+            -- place one
+            pole = to.surface.create_entity({
+                name = "entity-ghost",
+                position = position,
+                force = to.force,
+                raise_built = false,
+                inner_name = to.ghost_prototype.name
+            })
+            if pole ~= nil then
+                -- check if no cliffs
+                if to.surface.count_entities_filtered({area = pole.bounding_box, type = "cliff", collision_mask = "object-layer"}) == 0 then
+                    -- deconstruct the rest
+                    for _, obstacle in pairs(to.surface.find_entities_filtered({
+                            area = pole.bounding_box,
+                            collision_mask = "object-layer"
+                    })) do
+                        obstacle.order_deconstruction(to.force)
+                    end
+                    poles_count = poles_count + 1
+                else
+                    -- remove the ghost otherwise
+                    pole.destroy({raise_destroy = false})
+                    pole = nil
+                    -- try to place a pole closer
+                    cancel_placing = false
+                end
+            end
+        end
+    end
+    
+    -- draw a line if can reach (debug)
+    -- if math.sqrt(distanceSq(position.x - from.position.x, position.y - from.position.y)) <= reach then
+        -- local color = (pole ~= nil) and {0, 1, 1} or {1, 0, 0}
+        -- rendering.draw_line({color = color, width = 1, from = from, to = position, surface = to.surface})
+    -- end
+    
+    if pole == nil then
+        if cancel_placing == false then
+            if reach >= 2 then
+                placePoleBetween(from, to, poles_count, reach - 1)
+            else
+                cancel_placing = true
+            end
+        end
+    else
+        if distanceSq(to.position.x - position.x, to.position.y - position.y) > reach * reach then
+            -- next pole
+            placePoleBetween(pole, to, poles_count)
+            cancel_placing = false
+        end
+    end
+    
+    -- show a text with the number of placed pole ghosts
+    if cancel_placing == true then
+        rendering.draw_text({
+            text = poles_count,
+            surface = to.surface,
+            target = to,
+            target_offset = {0, 0.5},
+            color = {1, 1, 1},
+            scale_with_zoom = true,
+            alignment = "center"
+        })
+    end
+end
+
+local last_pole
+function onPoleBuilt(pole, player)
+    -- check if the player has a filter of the pole in upper first quickbar slot
+    local slot_item = player.get_quick_bar_slot(player.get_active_quick_bar_page(1) * 10 - 9)
+    if slot_item ~= nil and slot_item.place_result ~= nil then
+        if slot_item.place_result.name == pole.ghost_prototype.name then
+            if last_pole ~= nil and last_pole.valid then
+                placePoleBetween(last_pole, pole)
+                last_pole = nil
+            else
+                last_pole = pole
+            end
+        end
+    end
+end
+
 script.on_event(defines.events.on_player_created, function(event)
     if not global.players then
         global.players = {}
@@ -511,4 +629,16 @@ script.on_event(defines.events.on_player_changed_position, function(event)
     end
     -- save new player position
     global.players[event.player_index].previous_position = player.position
+end)
+
+script.on_event(defines.events.on_built_entity, function(event)
+    if global.creative then
+        return
+    end
+    -- Sladki
+    if event.created_entity.name == "entity-ghost" then
+        if event.created_entity.ghost_prototype.type == "electric-pole" then
+            onPoleBuilt(event.created_entity, game.players[event.player_index])
+        end
+    end
 end)
