@@ -371,6 +371,17 @@ function preventMining(player)
     player.force.manual_mining_speed_modifier = -0.99999999 -- allows removing ghosts with right-click
 end
 
+function zoomOnRadar(player, radar)
+    if player.render_mode == defines.render_mode.chart_zoomed_in then
+        if radar ~= nil and radar.type == "radar" then
+            player.teleport(radar.position)
+            player.zoom = 0.5
+            player.close_map()
+            player.clean_cursor() -- Radar ghost item
+        end
+    end
+end
+
 script.on_event(defines.events.on_player_created, function(event)
     if not global.players then
         global.players = {}
@@ -411,6 +422,7 @@ script.on_event(defines.events.on_player_pipette, function(event)
     end
     game.players[event.player_index].cursor_stack.clear()
     game.players[event.player_index].cursor_ghost = event.item
+    zoomOnRadar(game.players[event.player_index], game.players[event.player_index].selected) -- Sladki
 end)
 
 script.on_event(defines.events.on_player_crafted_item, function(event)
