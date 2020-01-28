@@ -99,14 +99,14 @@ function dropItems(player, name, count)
         for _, inventory_id in pairs(defines.inventory) do
             local inventory = entity.get_inventory(inventory_id)
             if inventory then
-                local barpos = inventory.hasbar() and inventory.getbar() or nil
-                if inventory.hasbar() then
-                    inventory.setbar() -- clear bar (the chest size limiter)
+                local barpos = inventory.supports_bar() and inventory.get_bar() or nil
+                if inventory.supports_bar() then
+                    inventory.set_bar() -- clear bar (the chest size limiter)
                 end
                 inserted = inserted + inventory.insert{name = name, count = count}
                 count = count - inserted
-                if inventory.hasbar() then
-                    inventory.setbar(barpos) -- reset bar
+                if inventory.supports_bar() then
+                    inventory.set_bar(barpos) -- reset bar
                 end
                 if count <= 0 then
                     break
