@@ -1,11 +1,11 @@
 {
   "name": "brave-new-world",
-  "version": "3.2.1",
-  "factorio_version": "0.17",
+  "version": "3.3.0",
+  "factorio_version": "0.18",
   "title": "Brave New World",
   "author": "canidae",
   "contact": "canidae@exent.net",
   "homepage": "http://exent.net",
   "description": "RTS-like scenario for Factorio. Player character is removed, all work must be done by bots",
-  "dependencies": ["base >= 0.17.0"]
+  "dependencies": ["base >= 0.18.0"]
 }
