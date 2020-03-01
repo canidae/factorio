@@ -1,11 +1,17 @@
 ---------------------------------------------------------------------------------------------------
-Version: 5.0.1.
+Version: 5.0.2
+Date: 09. 04. 2019
+  Changes:
+    - Fixed setting research which broke with Factorio 0.17.26.
+    - Made the research strategy options look better.
+---------------------------------------------------------------------------------------------------
+Version: 5.0.1
 Date: 03. 03. 2019
   Changes:
     - Keybinding (Shift-T) should work again.
     - Filtering search results by ingredients should work properly again.
 ---------------------------------------------------------------------------------------------------
-Version: 5.0.0.
+Version: 5.0.0
 Date: 03. 03. 2019
   Changes:
     - Updated for Factorio 0.17.
